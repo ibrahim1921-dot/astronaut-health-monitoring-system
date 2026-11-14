@@ -1,0 +1,430 @@
+'use client';
+
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useHealthData } from './hooks/useHealthData.js';
+import { useStoredSetting } from './hooks/useStoredSetting.js';
+import { DEFAULT_PROFILE_ID, PROFILES_BY_ID, getProfile } from './constants/mission.js';
+import { getCrewMember } from './services/healthService.js';
+import { OnboardProvider, useOnboard } from './hooks/useOnboard.jsx';
+import { readVitalsCheckins } from './lib/vitalsCheckinStore.js';
+import { canOpen, screenFor, tabsFor } from './lib/appScreens.js';
+import { buildPersonDashboard } from './lib/personCards.js';
+import { useDemo } from './hooks/useDemo.js';
+import { eventsFor, onOrBefore } from './lib/demoState.js';
+import { sensorDaysFor } from './lib/deviceScoring.js';
+import DemoControls from './views/DemoControls.jsx';
+import { crewDaysOf, preflightDaysOf } from './data/bundled.js';
+import Landing from './components/Landing.jsx';
+import CrewSwitcher from './components/CrewSwitcher.jsx';
+import MoreMenu from './components/MoreMenu.jsx';
+import Vitals from './views/Vitals.jsx';
+import { fitnessFor } from './lib/fitness.js';
+import { fitnessFile } from './data/bundled.js';
+import { crewMemberFor, crewRoster } from './mocks/crew.js';
+import Header from './components/Header.jsx';
+import Banner from './components/Banner.jsx';
+import CheckinForm from './components/CheckinForm.jsx';
+import ExamForm from './components/ExamForm.jsx';
+import ExamNotice from './components/ExamNotice.jsx';
+import { useAccessLog } from './hooks/useAccessLog.js';
+import { EmergencyProvider, useEmergency } from './hooks/useEmergency.jsx';
+import { emergenciesAbout } from './lib/emergency.js';
+import { viewsOf } from './lib/accessLog.js';
+import Dashboard from './views/Dashboard.jsx';
+import SleepRecovery from './views/SleepRecovery.jsx';
+import About from './views/About.jsx';
+import CrewMedicalOfficer from './views/CrewMedicalOfficer.jsx';
+import dynamic from 'next/dynamic';
+
+// Recharts is only needed on the Lab baseline view; load it on demand.
+const LabBaseline = dynamic(() => import('./views/LabBaseline.jsx'), {
+  ssr: false,
+  loading: () => <section className="card card--lg" aria-busy="true"><span className="skel" style={{ width: '100%', height: 340 }} /></section>,
+});
+
+// The stand test also uses Recharts; load it on demand too.
+// The environment view uses Recharts too.
+const Environment = dynamic(() => import('./views/Environment.jsx'), {
+  ssr: false,
+  loading: () => <section className="card card--lg" aria-busy="true"><span className="skel" style={{ width: '100%', height: 340 }} /></section>,
+});
+
+const StandTest = dynamic(() => import('./views/StandTest.jsx'), {
+  ssr: false,
+  loading: () => <section className="card card--lg" aria-busy="true"><span className="skel" style={{ width: '100%', height: 340 }} /></section>,
+});
+
+/** One line per view under the disclaimer; the full detail lives on the About page. */
+const FOOTER = {
+  dashboard: 'Crew data is synthetic, for a fictional crew. Sensor readings are simulated.',
+  vitals: 'Crew data is synthetic, for a fictional crew. Sensor readings are simulated.',
+  checkin: 'Readings are saved and scored on this device first.',
+  exam: 'Exams are saved and scored on this device first, against the crew member’s own history.',
+  sleep: 'Sleep nights are general human data from PhysioNet: adults on Earth, not astronauts.',
+  labs: 'Lab values are from NASA’s Inspiration4 crew.',
+  environment: 'Station measurements from NASA’s RR-1 mission (ISS, 2014), not a crew member’s personal exposure.',
+  standtest: 'Seeded stand tests are synthetic; tests you run are saved on this device.',
+  cmo: 'Crew data is synthetic and sensor readings are simulated. The Crew Medical Officer decides what happens next.',
+  demo: 'Demo controls change only this browser’s demo clock and simulated sensor events.',
+  about: 'Every limit and its source is listed on this page, so it always matches the checks.',
+};
+
+export default function App() {
+  return (
+    <OnboardProvider>
+      <EmergencyProvider>
+        <Gate />
+      </EmergencyProvider>
+    </OnboardProvider>
+  );
+}
+
+/** Signed out → landing screen. Signed in → the app, remounted per person so no state carries over. */
+function Gate() {
+  const onboard = useOnboard();
+  const screen = screenFor(onboard);
+  if (screen === 'loading') return <main className="landing" aria-busy="true" />;
+  if (screen === 'landing') return <Landing />;
+  return <AppShell key={onboard.crewId} />;
+}
+
+function AppShell() {
+  const onboard = useOnboard();
+  const crewId = onboard.crewId;
+  const crew = useHealthData(() => getCrewMember(crewId), [crewId]);
+  // Lena (CMO) gets her personal tabs plus the whole-crew tab; crew never get the CMO tab.
+  const tabs = tabsFor(onboard.account);
+  const [view, setView] = useState('dashboard'); // 'dashboard' | 'checkin' | 'sleep' | 'labs' | 'environment' | 'standtest' | 'about'
+  const [profileId, setProfileId] = useStoredSetting('ahm.missionProfile.v1', DEFAULT_PROFILE_ID, (v) => v in PROFILES_BY_ID);
+  // Kept mounted once opened, so switching tabs mid-test does not lose the timers or readings.
+  const [standVisited, setStandVisited] = useState(false);
+  const [standFocus, setStandFocus] = useState(0);
+  const [saved, setSaved] = useState([]); // the shown person's check-ins saved on this device, newest first
+  // The Crew Medical Officer can open any crew member's dashboard; everyone else only sees their own.
+  const [viewedId, setViewedId] = useState(crewId);
+  const shownId = onboard.isCmo ? viewedId : crewId;
+  const viewingOther = shownId !== crewId;
+  const shown = crewMemberFor(shownId);
+  const [banner, setBanner] = useState(null);
+  const [examFor, setExamFor] = useState(null); // CMO only: the crew member being examined
+  const access = useAccessLog();
+  const emergency = useEmergency();
+  // Demo clock: "today" is the last crew.json day + the demo offset; simulated sensor days fill the gap.
+  const demo = useDemo();
+
+  const checkinButtonRef = useRef(null);
+  const bannerRef = useRef(null);
+  const pendingFocus = useRef(null); // 'banner' | 'checkinButton'
+
+  // Move focus to a sensible place after returning to the dashboard.
+  useEffect(() => {
+    if (view !== 'dashboard' || !pendingFocus.current) return;
+    const target = pendingFocus.current === 'banner' ? bannerRef.current : checkinButtonRef.current;
+    pendingFocus.current = null;
+    target?.focus();
+  }, [view, banner]);
+
+  useEffect(() => {
+    if (view === 'standtest') setStandVisited(true);
+  }, [view]);
+
+  // The shown person's dashboard, from their own crew.json rows (latest day = synthetic crew record) and
+  // their check-ins saved on this device. Re-read when records change or the outbox syncs.
+  useEffect(() => {
+    setSaved(readVitalsCheckins(shownId));
+  }, [shownId, onboard.version]);
+  const shownSensorDays = useMemo(() => sensorDaysFor(shownId, demo.state, demo.today), [shownId, demo.state, demo.today]);
+  const ownSensorDays = useMemo(
+    () => (shownId === crewId ? shownSensorDays : sensorDaysFor(crewId, demo.state, demo.today)),
+    [shownId, crewId, shownSensorDays, demo.state, demo.today],
+  );
+  const sensorToday = ownSensorDays.find((d) => d.date === demo.today) ?? null;
+  const person = useMemo(
+    () =>
+      buildPersonDashboard({
+        crewId: shownId,
+        crewDays: crewDaysOf(shownId),
+        preflight: preflightDaysOf(shownId),
+        saved,
+        sensorDays: shownSensorDays,
+        today: demo.today,
+      }),
+    [shownId, saved, shownSensorDays, demo.today],
+  );
+
+  // Every reading for the shown person: the six cards plus grip strength (Bones and muscles).
+  const fitness = useMemo(() => fitnessFor(shownId, fitnessFile), [shownId]);
+  const vitalCards = useMemo(() => [...person.cards, ...(fitness ? [fitness.grip] : [])], [person, fitness]);
+  const [vitalId, setVitalId] = useState(null);
+
+  /** Open one reading on the Vitals page (or the first one). */
+  function openVital(id = null) {
+    setVitalId(id);
+    setView('vitals');
+    window.scrollTo(0, 0);
+  }
+
+  // CMO only: every crew member's overall status, for the crew cards.
+  const crewCards = useMemo(() => {
+    if (!onboard.isCmo) return [];
+    return crewRoster.map((c) => ({
+      ...c,
+      status: buildPersonDashboard({
+        crewId: c.id,
+        crewDays: crewDaysOf(c.id),
+        preflight: preflightDaysOf(c.id),
+        saved: readVitalsCheckins(c.id),
+        sensorDays: sensorDaysFor(c.id, demo.state, demo.today),
+        today: demo.today,
+      }).overall.status,
+    }));
+  }, [onboard.isCmo, onboard.version, demo.state, demo.today]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** CMO: show one crew member's dashboard. */
+  function openCrew(id) {
+    setViewedId(id);
+    setView('dashboard');
+    window.scrollTo(0, 0);
+  }
+
+  // The CMO opening someone else's dashboard is logged (throttled in lib/accessLog.js).
+  useEffect(() => {
+    if (onboard.isCmo && viewingOther) access.logView(shownId);
+  }, [onboard.isCmo, viewingOther, shownId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** CMO: record an exam for another crew member (never for herself). */
+  function openExam(id) {
+    if (!onboard.isCmo || !id || id === crewId) return;
+    setExamFor(id);
+    setView('exam');
+    window.scrollTo(0, 0);
+  }
+
+  // The emergency guide opens the existing exam form for the patient (CMO only).
+  const openExamRef = useRef(null);
+  openExamRef.current = openExam;
+  useEffect(() => (onboard.isCmo ? emergency.registerExam((id) => openExamRef.current(id)) : undefined), [onboard.isCmo]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleExamSaved(record) {
+    const name = crewMemberFor(record.crew_id)?.name ?? record.crew_id;
+    setViewedId(record.crew_id);
+    if (record.crew_id === shownId) setSaved((list) => [record, ...list.filter((r) => r.id !== record.id)]);
+    setBanner(`Exam saved for ${name}.`);
+    setExamFor(null);
+    pendingFocus.current = 'banner';
+    setView('dashboard');
+  }
+
+  function handleExamCancel() {
+    setExamFor(null);
+    setView(viewingOther ? 'dashboard' : 'cmo');
+  }
+
+  const examPatient = examFor ? crewMemberFor(examFor) : null;
+  const examSensorDays = useMemo(
+    () => (examFor ? sensorDaysFor(examFor, demo.state, demo.today) : []),
+    [examFor, demo.state, demo.today],
+  );
+  // Exams the CMO recorded for the signed-in crew member, for the notice on their own Today.
+  const examsForMe = useMemo(
+    () => (viewingOther ? [] : onOrBefore(saved, demo.today).filter((r) => r.payload?.kind_detail === 'cmo_exam')),
+    [viewingOther, saved, demo.today],
+  );
+  const latestVitals = person.latest;
+  // Check-ins dated after the demo's today stay hidden (not deleted) until the clock reaches them.
+  const savedLatest = onOrBefore(saved, demo.today)[0] ?? null;
+  const ownLatest = useMemo(
+    () => (shownId === crewId ? savedLatest : onOrBefore(readVitalsCheckins(crewId), demo.today)[0] ?? null),
+    [shownId, crewId, savedLatest, demo.today, onboard.version], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const latestCheckin = savedLatest?.payload?.context
+    ? { ...savedLatest.payload.context, savedAt: savedLatest.recorded_at }
+    : null;
+
+  // Never show a view this person may not open (e.g. the CMO view for crew).
+  useEffect(() => {
+    if (!canOpen(onboard.account, view)) setView('dashboard');
+  }, [view, onboard.account]);
+
+  /** From the body map or the Today prompt: open the stand test and focus its title. */
+  function openStandTest() {
+    setView('standtest');
+    setStandFocus((n) => n + 1);
+    window.scrollTo(0, 0);
+  }
+
+  function openCheckin() {
+    setView('checkin');
+    window.scrollTo(0, 0);
+  }
+
+  function handleSaved(checkin) {
+    if (checkin.vitals) setSaved((list) => [checkin.vitals, ...list.filter((r) => r.id !== checkin.vitals.id)]);
+    setBanner(
+      checkin.missionDay
+        ? `Check-in saved for mission day ${checkin.missionDay}.`
+        : 'Check-in saved.',
+    );
+    pendingFocus.current = 'banner';
+    setView('dashboard');
+  }
+
+  function handleCancel() {
+    pendingFocus.current = 'checkinButton';
+    setView('dashboard');
+  }
+
+  function dismissBanner() {
+    setBanner(null);
+    checkinButtonRef.current?.focus();
+  }
+
+  return (
+    <>
+      <Header
+        crew={crew}
+        profileId={profileId}
+        onProfileChange={setProfileId}
+        updatedAt={latestVitals?.recorded_at}
+        missionDay={demo.missionDay}
+      />
+
+      <main className="container main">
+        {view !== 'checkin' && view !== 'exam' && (
+          <nav className="viewtabs" aria-label="Views">
+            {tabs.map((t) =>
+              t.items ? (
+                <MoreMenu key={t.id} items={t.items} view={view} onSelect={setView} />
+              ) : (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`viewtabs__tab${view === t.id ? ' is-active' : ''}`}
+                  aria-current={view === t.id ? 'page' : undefined}
+                  onClick={() => setView(t.id)}
+                >
+                  {t.label}
+                </button>
+              ),
+            )}
+          </nav>
+        )}
+
+        {view === 'vitals' && (
+          <>
+            {viewingOther && (
+              <div className="viewing viewing--slim" role="status">
+                <p className="viewing__text">
+                  Viewing <strong>{shown?.name}</strong>. Read only.
+                </p>
+                <button type="button" className="btn btn--secondary viewing__exam" onClick={() => openExam(shownId)}>
+                  Record an exam
+                </button>
+              </div>
+            )}
+            <Vitals
+              cards={vitalCards}
+              selectedId={vitalId}
+              onSelect={setVitalId}
+              profile={getProfile(profileId)}
+              personName={viewingOther ? shown?.name : undefined}
+            />
+          </>
+        )}
+        {view === 'sleep' && <SleepRecovery />}
+        {view === 'labs' && <LabBaseline />}
+        {view === 'environment' && <Environment />}
+        {view === 'about' && <About viewsOfMe={viewsOf(access.entries, crewId)} emergenciesOfMe={emergenciesAbout(emergency.all, crewId)} />}
+        {view === 'demo' && <DemoControls demo={demo} />}
+        {view === 'cmo' && onboard.isCmo && <CrewMedicalOfficer selfId={crewId} onOpenCrew={openCrew} onRecordExam={openExam} accessEntries={access.entries} emergencies={emergency.all} />}
+
+        {(standVisited || view === 'standtest') && (
+          <div hidden={view !== 'standtest'}>
+            <StandTest profileId={profileId} crewId={crewId} crewName={crew.data?.name} focusSignal={standFocus} />
+          </div>
+        )}
+
+        {/* Kept mounted while the form is open so region selection and data survive. */}
+        <div hidden={view !== 'dashboard'}>
+          {onboard.isCmo && <CrewSwitcher crew={crewCards} selfId={crewId} viewedId={shownId} onSelect={openCrew} />}
+          {viewingOther && (
+            <div className="viewing" role="status">
+              <p className="viewing__text">
+                Viewing <strong>{shown?.name}</strong>
+                <span className="muted"> · {shown?.role}</span>. Read only: check-ins and stand tests are logged by
+                the crew member.
+              </p>
+              <div className="viewing__actions">
+                <button type="button" className="btn btn--primary viewing__exam" onClick={() => openExam(shownId)}>
+                  Record an exam
+                </button>
+                <button type="button" className="btn btn--secondary" onClick={() => openCrew(crewId)}>
+                  Back to my data
+                </button>
+              </div>
+            </div>
+          )}
+          {!viewingOther && examsForMe.length > 0 && <ExamNotice crewId={crewId} exams={examsForMe} />}
+          {banner && (
+            <Banner focusRef={bannerRef} onDismiss={dismissBanner}>
+              {banner}
+            </Banner>
+          )}
+          <Dashboard
+            latestCheckin={latestCheckin}
+            onLogCheckin={viewingOther ? null : openCheckin}
+            checkinButtonRef={checkinButtonRef}
+            profileId={profileId}
+            onStartStandTest={viewingOther ? null : openStandTest}
+            person={person}
+            crewId={shownId}
+            readings={vitalCards}
+            onOpenVital={openVital}
+            today={demo.today}
+            sensorsToday={!viewingOther && Boolean(sensorToday)}
+          />
+        </div>
+
+        {view === 'exam' && onboard.isCmo && examPatient && examFor !== crewId && (
+          <ExamForm
+            key={examFor}
+            patientId={examFor}
+            patientName={examPatient.name}
+            examiner={{ crew_id: crewId, name: onboard.account.name, role: onboard.account.role }}
+            today={demo.today}
+            missionDay={demo.missionDay}
+            sensorDays={examSensorDays}
+            demoEvents={eventsFor(demo.state, examFor)}
+            profileId={profileId}
+            onSaved={handleExamSaved}
+            onCancel={handleExamCancel}
+          />
+        )}
+
+        {view === 'checkin' && (
+          <CheckinForm
+            missionDay={demo.missionDay}
+            today={demo.today}
+            sensorDay={sensorToday}
+            sensorDays={ownSensorDays}
+            lastContext={ownLatest?.payload?.context ?? null}
+            enteredBy={onboard.account ? { crew_id: crewId, name: onboard.account.name, role: onboard.account.role } : null}
+            demoEvents={eventsFor(demo.state, crewId)}
+            crewId={crewId}
+            crewName={crew.data?.name}
+            profileId={profileId}
+            onSaved={handleSaved}
+            onCancel={handleCancel}
+          />
+        )}
+      </main>
+
+      <footer className="container footer">
+        <p className="footer__disclaimer">
+          Prototype for decision support. Not a medical device and not a diagnosis.
+        </p>
+        <p>{FOOTER[view] ?? FOOTER.dashboard} Sources and limits are listed under More → About.</p>
+      </footer>
+    </>
+  );
+}

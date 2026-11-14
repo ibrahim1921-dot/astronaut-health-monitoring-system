@@ -1,0 +1,31 @@
+node_modules/
+*.log
+
+# Environment files (never commit)
+.env*
+
+# Raw and interim pipeline data (about 38 MB; rebuilt by the scripts, see README).
+# The leading slash ignores only the root data/ folder: next-app/src/data/ holds the app's
+# bundled data (crew.json, nights, labs, stand tests) and must stay tracked.
+/data/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# AI assistant files (local only, never pushed)
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+.cursor/
+.cursorrules
+.windsurf/
+.windsurfrules
+.github/copilot-instructions.md
+.aider*
+
+# OS files
+.DS_Store
+Thumbs.db

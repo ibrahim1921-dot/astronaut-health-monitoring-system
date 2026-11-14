@@ -1,0 +1,130 @@
+'use client';
+
+import { useCallback, useRef, useState } from 'react';
+import ReadingTiles from '../components/ReadingTiles.jsx';
+import NeedsAttention from '../components/NeedsAttention.jsx';
+import BodyMap from '../components/BodyMap.jsx';
+import RegionDrawer from '../components/RegionDrawer.jsx';
+import OverallHealthCard from '../components/OverallHealthCard.jsx';
+import ContextCard from '../components/ContextCard.jsx';
+import SourceLabel from '../components/SourceLabel.jsx';
+import { getProfile } from '../constants/mission.js';
+import { DRAWER_PINS } from '../lib/personCards.js';
+import { fitnessFor } from '../lib/fitness.js';
+import { fitnessFile } from '../data/bundled.js';
+
+
+function GravityPrompt({ profile, onStart }) {
+  return (
+    <section className="gravity-prompt" aria-labelledby="gravity-title">
+      <div className="gravity-prompt__body">
+        <h2 id="gravity-title" className="gravity-prompt__title">
+          Arrival in gravity: complete a stand test before EVA or heavy work.
+        </h2>
+        <SourceLabel source={`Mission profile: ${profile.label}`} />
+      </div>
+      <button type="button" className="btn btn--primary" onClick={onStart}>
+        Start stand test
+      </button>
+    </section>
+  );
+}
+
+/**
+ * The signed-in person's dashboard. `person` comes from lib/personCards.js (buildPersonDashboard):
+ * six cards, region statuses and the overall score, all from that person's own crew.json rows and
+ * check-ins. Bones and muscles comes from their grip strength against their own preflight value.
+ */
+export default function Dashboard({
+  crewId,
+  latestCheckin,
+  onLogCheckin,
+  checkinButtonRef,
+  profileId,
+  onStartStandTest,
+  person,
+  readings = person.cards,
+  onOpenVital = () => {},
+  today = null,
+  sensorsToday = false,
+}) {
+  const profile = getProfile(profileId);
+  // Bones and muscles: this person's grip strength against their own preflight value (lib/fitness.js).
+  const fitness = fitnessFor(crewId, fitnessFile);
+  const regionStatuses = { ...person.regions, limbs: fitness?.grip.status ?? null };
+
+  const [openRegion, setOpenRegion] = useState(null);
+  const labelRefs = useRef({});
+  // Focus always returns to the region's label, even when the figure itself was clicked.
+  const returnTarget = useCallback(() => labelRefs.current[openRegion], [openRegion]);
+
+  const latest = person.latest;
+  const basis = latest?.fromCrewRecord ? 'synthetic crew record' : latest?.fromSensor ? 'simulated sensors' : 'your check-in';
+  const overallState = { data: person.overall, loading: false, error: null, reload: () => {} };
+
+  return (
+    <>
+      {profile.gravityArrival && onStartStandTest && <GravityPrompt profile={profile} onStart={onStartStandTest} />}
+      <div className="today">
+        <BodyMap
+          statuses={regionStatuses}
+          wholeBody={person.regions.wholeBody}
+          openRegion={openRegion}
+          onOpen={setOpenRegion}
+          labelRefs={labelRefs}
+          source={`Region status: from your latest readings (${basis}) · Bones and muscles: your grip strength vs preflight`}
+          simulated={Boolean(latest?.fromSensor)}
+        />
+
+        <div className="today__side">
+          <OverallHealthCard state={overallState} label="Computed from your latest readings" />
+          <NeedsAttention cards={readings} onOpen={onOpenVital} onOpenAll={() => onOpenVital()} />
+          <section className="card" aria-labelledby="readings-title">
+            <div className="card__head">
+              <h2 id="readings-title" className="card__title">
+                Today&apos;s readings
+              </h2>
+              <button type="button" className="link-btn" onClick={() => onOpenVital()}>
+                All details
+              </button>
+            </div>
+            <ReadingTiles cards={readings} onOpen={onOpenVital} label="Today's readings" />
+          </section>
+          <ContextCard
+            latestCheckin={latestCheckin}
+            onLogCheckin={onLogCheckin}
+            buttonRef={checkinButtonRef}
+            today={today}
+            sensorsToday={sensorsToday}
+          />
+        </div>
+      </div>
+
+      {openRegion && (
+        <RegionDrawer
+          regionId={openRegion}
+          status={regionStatuses[openRegion]}
+          latestVitals={latest}
+          crewRecord={person.crewRecord}
+          personal={person.cardsById}
+          pinned={
+            openRegion === 'limbs'
+              ? (fitness?.rows ?? [])
+              : (DRAWER_PINS[openRegion] ?? []).map((id) => person.cardsById[id]).filter(Boolean)
+          }
+          onClose={() => setOpenRegion(null)}
+          getReturnTarget={returnTarget}
+          profile={profile}
+          onStartStandTest={
+            openRegion === 'chest' && onStartStandTest
+              ? () => {
+                  setOpenRegion(null);
+                  onStartStandTest();
+                }
+              : undefined
+          }
+        />
+      )}
+    </>
+  );
+}
