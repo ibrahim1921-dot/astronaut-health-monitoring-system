@@ -15,8 +15,9 @@ const updatedText = (iso) =>
 /**
  * @param {{ updatedAt?: string, viewMenu?: object }} props  updatedAt: the signed-in person's newest reading time; viewMenu: CMO only, see AccountMenu
  * The mission environment is the chip next to the account menu (components/EnvironmentChip.jsx); only the CMO changes it there.
+ * reminderBell: the reminders bell (components/ReminderBell.jsx), shown just before the environment chip.
  */
-export default function Header({ crew, profileId, updatedAt, missionDay = null, viewMenu = null }) {
+export default function Header({ crew, profileId, updatedAt, missionDay = null, viewMenu = null, reminderBell = null }) {
   const { data, loading, error, reload } = crew;
   const profile = getProfile(profileId);
 
@@ -67,6 +68,7 @@ export default function Header({ crew, profileId, updatedAt, missionDay = null, 
       <div className="container header__onboard">
         <OnboardStatus profileId={profile.id} />
         <div className="header__controls">
+          {reminderBell}
           <EnvironmentChip />
           <AccountMenu viewMenu={viewMenu} />
         </div>

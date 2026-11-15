@@ -3,6 +3,8 @@ import '../styles/theme.css';
 import '../styles/app.css';
 import '../styles/emergency.css';
 import '../styles/why.css';
+import '../styles/reminders.css';
+import '../styles/activities.css';
 
 // theme.css reads these variables in --font-ui and --font-number.
 const barlow = Barlow({

@@ -14,6 +14,7 @@ import SourceLabel from '../components/SourceLabel.jsx';
 import { MISSION_PROFILES } from '../constants/mission.js';
 import { useMission } from '../hooks/useMission.jsx';
 import { contextLine } from '../lib/environmentRules.js';
+import { REMINDER_SETTINGS, TEAM_SET } from '../content/reminderSchedule.js';
 
 const longDate = (iso) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
@@ -50,7 +51,36 @@ function ConfirmClear({ count, unsynced, onConfirm, onCancel, returnRef }) {
   );
 }
 
-export default function DemoControls({ demo }) {
+/**
+ * Missed items the ground console should list (3+ days in a row, team-set). Read only, from the same data
+ * the ground adapter reads; the ground console itself shows them in pass 2.
+ */
+function GroundMissedList({ list }) {
+  return (
+    <section className="card card--lg demo-panel" aria-labelledby="demo-ground-title">
+      <h3 id="demo-ground-title" className="card__title">
+        Missed items for the ground
+      </h3>
+      <p className="muted demo-help">
+        {REMINDER_SETTINGS.groundAfterDays} or more missed days in a row ({TEAM_SET}). Advance the day without checking in to see a
+        missed check-in reach the CMO at {REMINDER_SETTINGS.cmoAfterDays} days and this list at {REMINDER_SETTINGS.groundAfterDays}.
+      </p>
+      {list.length === 0 ? (
+        <p className="muted">Nothing for the ground today.</p>
+      ) : (
+        <ul className="demo-ground__list" aria-label="Missed items for the ground">
+          {list.map((m) => (
+            <li key={`${m.crewId}-${m.reminderId}`}>
+              <strong>{names[m.crewId] ?? m.crewId}</strong> · {m.text}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+export default function DemoControls({ demo, groundList = [] }) {
   const { version } = useOnboard();
   // For judges: the mission environment can always be changed here (the header chip is CMO only).
   const mission = useMission();
@@ -126,6 +156,8 @@ export default function DemoControls({ demo }) {
           saved check-ins are kept. Check-ins dated after the demo date are hidden until the clock reaches them.
         </p>
       </section>
+
+      <GroundMissedList list={groundList} />
 
       <section className="card card--lg demo-panel" aria-labelledby="demo-env-title">
         <h3 id="demo-env-title" className="card__title">

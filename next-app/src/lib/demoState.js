@@ -91,6 +91,10 @@ export const eventsFor = (state, crewId) => state.events.filter((e) => e.crewId 
 export const onOrBefore = (records, today) =>
   today ? records.filter((r) => typeof r?.recorded_at === 'string' && r.recorded_at.slice(0, 10) <= today) : records;
 
+/** The demo date with the real time of day (as check-ins are stamped), so a record lands on the demo's "today". */
+export const stampOnDemoDate = (today, now = new Date()) =>
+  today ? `${today}T${new Date(now).toISOString().slice(11)}` : new Date(now).toISOString();
+
 // ---------- Storage ----------
 
 export function readDemo(storage) {

@@ -16,6 +16,7 @@ import {
   validateStandTest,
 } from '../lib/standTest.js';
 import { makeRecord, readStandTests, writeStandTest } from '../lib/standTestStore.js';
+import { stampOnDemoDate } from '../lib/demoState.js';
 import { scoreStandTestOnDevice } from '../lib/deviceScoring.js';
 import { SCORED_LABEL } from '../lib/scoring.js';
 import { useOnboard } from '../hooks/useOnboard.jsx';
@@ -137,7 +138,7 @@ const STAND_STEPS = [
 ];
 
 /** The stand test for the signed-in person only (no person picker: tests for others could not sync). */
-export default function StandTest({ profileId, crewId, crewName: nameProp, focusSignal }) {
+export default function StandTest({ profileId, crewId, crewName: nameProp, focusSignal, today = null }) {
   const seeded = useHealthData(() => getStandTests());
   const [demoMode, setDemoMode] = useStoredSetting('ahm.demoMode.v1', false, (v) => typeof v === 'boolean');
   const profile = getProfile(profileId);
@@ -319,6 +320,8 @@ export default function StandTest({ profileId, crewId, crewName: nameProp, focus
       reasons: result.reasons,
       engineVersion: result.engine_version,
       scoredOn: result.scored_on,
+      // On the demo's today, like a check-in, so it counts for that day's reminders and views.
+      recordedAt: stampOnDemoDate(today),
     });
     const stored = writeStandTest(record);
     setSaved((prev) => [record, ...prev.filter((r) => r.id !== record.id)]);
