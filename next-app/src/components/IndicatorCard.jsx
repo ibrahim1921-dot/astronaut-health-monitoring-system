@@ -8,6 +8,8 @@ import { WhySection } from './WhyItMatters.jsx';
 
 /** Status chip, or the reason a reading is missing today (never shown as "Normal"). */
 export function StatusOrMissing({ indicator }) {
+  // Game data (Activities): "Logged · not scored" in place of a status chip.
+  if (indicator.notScored) return <span className="act-chip act-chip--tag">{indicator.notScoredText}</span>;
   if (indicator.missing) return <span className="chip chip--muted">{indicator.missingText}</span>;
   return <StatusChip status={indicator.status} />;
 }

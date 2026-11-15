@@ -17,11 +17,26 @@ function EmergencyMark() {
   );
 }
 
+/** Missed items (2+ days in a row, from hooks/useReminders.js): watch colour, icon + text. Never red. */
+function MissedMark({ missed }) {
+  return (
+    <span className="crew-overview__missed">
+      <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+        <circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M8 4.8V8l2.2 1.6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+      {missed.text}
+      {missed.items.length > 1 && <span className="muted"> · +{missed.items.length - 1} more</span>}
+      {missed.level === 'ground' && <span className="crew-overview__missed-ground"> · Listed for ground</span>}
+    </span>
+  );
+}
+
 /**
  * Crew Medical Officer only: her Today. One card per crew member, already ordered by
- * lib/crewOverview.js (open emergencies, alert, watch, normal; her own card last). Choosing a card
- * opens that person's Today, read only; her own card opens "My data".
- * @param {{ cards: { id, name, role, status, reason, lastAt, emergency }[], selfId: string, onOpen: (id: string) => void }} props
+ * lib/reminders.js orderWithMissed (open emergencies, alert, watch, missed items, normal; her own card last).
+ * Choosing a card opens that person's Today, read only; her own card opens "My data".
+ * @param {{ cards: { id, name, role, status, reason, lastAt, emergency, missed? }[], selfId: string, onOpen: (id: string) => void }} props
  */
 export default function CrewOverview({ cards, selfId, onOpen }) {
   return (
@@ -55,6 +70,7 @@ export default function CrewOverview({ cards, selfId, onOpen }) {
                   {STATUS_LABELS[c.status]}
                 </span>
                 {c.reason && <span className="crew-overview__reason">{c.reason}</span>}
+                {c.missed && <MissedMark missed={c.missed} />}
                 <span className="crew-overview__time muted">
                   {c.lastAt ? (
                     <>

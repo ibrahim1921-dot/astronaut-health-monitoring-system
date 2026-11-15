@@ -17,9 +17,17 @@ import { crewDaysOf, preflightDaysOf } from './data/bundled.js';
 import Landing from './components/Landing.jsx';
 import CrewOverview from './components/CrewOverview.jsx';
 import { OVERVIEW, canView, resolveViewedId } from './lib/permissions.js';
-import { lastCheckinAt, openEmergencyPatients, orderCrewCards, topReason } from './lib/crewOverview.js';
+import { lastCheckinAt, openEmergencyPatients, topReason } from './lib/crewOverview.js';
+import { orderWithMissed } from './lib/reminders.js';
+import { useReminders } from './hooks/useReminders.js';
+import ReminderBell from './components/ReminderBell.jsx';
+import DueToday from './components/DueToday.jsx';
 import MoreMenu from './components/MoreMenu.jsx';
 import Vitals from './views/Vitals.jsx';
+import Activities from './views/Activities.jsx';
+import { useActivities } from './hooks/useActivities.js';
+import { exerciseRow, reactionPanel } from './lib/activities.js';
+import { regionIndicators } from './mocks/regions.js';
 import { fitnessFor } from './lib/fitness.js';
 import { fitnessFile } from './data/bundled.js';
 import { crewMemberFor, crewRoster } from './mocks/crew.js';
@@ -69,7 +77,10 @@ const FOOTER = {
   cmo: 'Crew data is synthetic and sensor readings are simulated. The Crew Medical Officer decides what happens next.',
   demo: 'Demo controls change only this browser’s demo clock and simulated sensor events.',
   about: 'Every limit and its source is listed on this page, so it always matches the checks.',
+  activities: 'Game sessions are saved on this device and never scored; they never change a reading or a status.',
 };
+
+const EXERCISE_BASE_ROW = regionIndicators.limbs.find((i) => i.id === 'exercise-time');
 
 export default function App() {
   return (
@@ -194,9 +205,37 @@ function AppShell() {
     });
   }, [onboard.isCmo, onboard.version, demo.state, demo.today]); // eslint-disable-line react-hooks/exhaustive-deps
   const emergencyIds = useMemo(() => openEmergencyPatients(emergency.all), [emergency.all]);
+
+  // Reminders: one source (hooks/useReminders.js) for the bell, the "Due today" card, the CMO's
+  // Crew overview markers and the ground list.
+  const reminders = useReminders({ crewId, role: onboard.isCmo ? 'cmo' : 'crew', demo, profile: getProfile(profileId), crewStatus });
+  const [bellOpen, setBellOpen] = useState(false);
+
+  // Activities (More → Activities): this browser's game sessions and the signed-in person's patches.
+  const activities = useActivities({ crewId, demo, profileId, emergencies: emergency.all });
+  const [activityLaunch, setActivityLaunch] = useState(null); // { game, n }: a reminder opens a game directly
+  function openActivity(game = null) {
+    if (viewingOther) setViewedId(crewId); // games are always the signed-in person's own
+    if (game) setActivityLaunch((l) => ({ game, n: (l?.n ?? 0) + 1 }));
+    setView('activities');
+    window.scrollTo(0, 0);
+  }
+  // Body-map drawer: exercise time from logged Crew Journey sessions (own: minutes; others: sessions only).
+  const drawerExtras = useMemo(
+    () => (EXERCISE_BASE_ROW ? { 'exercise-time': exerciseRow(EXERCISE_BASE_ROW, activities.records, shownId, demo.today, { own: !viewingOther }) } : null),
+    [activities.records, shownId, demo.today, viewingOther],
+  );
+  const bellRef = useRef(null);
+
   const crewCards = useMemo(
-    () => orderCrewCards(crewStatus.map((c) => ({ ...c, emergency: emergencyIds.has(c.id) })), crewId, emergencyIds),
-    [crewStatus, emergencyIds, crewId],
+    () =>
+      orderWithMissed(
+        crewStatus.map((c) => ({ ...c, emergency: emergencyIds.has(c.id), missed: reminders.markers.get(c.id) ?? null })),
+        crewId,
+        emergencyIds,
+        reminders.markers,
+      ),
+    [crewStatus, emergencyIds, crewId, reminders.markers],
   );
 
   /** CMO: show one crew member's Today (or the crew page). Crew can only ever open their own. */
@@ -293,6 +332,20 @@ function AppShell() {
     window.scrollTo(0, 0);
   }
 
+  /** A reminder's action button: open the screen that completes it (always the signed-in person's own). */
+  function handleReminder(item) {
+    const a = item.action;
+    if (a.id === 'exam') return openExam(a.crewId);
+    if (a.id === 'checkin') return openCheckin();
+    if (a.id === 'standtest') return openStandTest();
+    if (a.id === 'activity') return openActivity(a.game);
+    if (a.id === 'grip') {
+      if (onboard.isCmo && viewedId !== crewId) setViewedId(crewId); // the grip log is on her own Vitals
+      return openVital('grip-strength');
+    }
+    return undefined;
+  }
+
   function handleSaved(checkin) {
     if (checkin.vitals) setSaved((list) => [checkin.vitals, ...list.filter((r) => r.id !== checkin.vitals.id)]);
     setBanner(
@@ -322,6 +375,7 @@ function AppShell() {
         updatedAt={latestVitals?.recorded_at}
         missionDay={demo.missionDay}
         viewMenu={viewMenu}
+        reminderBell={<ReminderBell reminders={reminders} open={bellOpen} onOpenChange={setBellOpen} onAction={handleReminder} bellRef={bellRef} />}
       />
 
       <main className="container main">
@@ -364,24 +418,44 @@ function AppShell() {
               profile={getProfile(profileId)}
               personName={viewingOther ? shown?.name : undefined}
               ownerLabel={ownerLabel}
+              gripLog={viewingOther ? null : { entries: reminders.gripEntries, onLog: reminders.logGrip }}
+              reactionRun={viewingOther ? null : { panel: reactionPanel(activities.records, crewId, demo.today), onPlay: () => openActivity('reaction_run') }}
             />
           </>
+        )}
+        {view === 'activities' && (
+          <Activities
+            activities={activities}
+            crewId={crewId}
+            viewingOther={viewingOther}
+            shownId={shownId}
+            shownName={shown?.name}
+            ownerLabel={ownerLabel}
+            profileId={profileId}
+            today={demo.today}
+            launch={activityLaunch}
+            onLaunchUsed={() => setActivityLaunch(null)}
+          />
         )}
         {view === 'sleep' && <SleepRecovery />}
         {view === 'labs' && <LabBaseline />}
         {view === 'environment' && <Environment />}
-        {view === 'about' && <About viewsOfMe={viewsOf(access.entries, crewId)} emergenciesOfMe={emergenciesAbout(emergency.all, crewId)} />}
-        {view === 'demo' && <DemoControls demo={demo} />}
+        {view === 'about' && (
+          <About viewsOfMe={viewsOf(access.entries, crewId)} emergenciesOfMe={emergenciesAbout(emergency.all, crewId)} notify={reminders.notify} />
+        )}
+        {view === 'demo' && <DemoControls demo={demo} groundList={reminders.ground} />}
         {view === 'cmo' && onboard.isCmo && <CrewMedicalOfficer selfId={crewId} onOpenCrew={openCrew} onRecordExam={openExam} accessEntries={access.entries} emergencies={emergency.all} />}
 
         {(standVisited || view === 'standtest') && (
           <div hidden={view !== 'standtest'}>
-            <StandTest profileId={profileId} crewId={crewId} crewName={crew.data?.name} focusSignal={standFocus} />
+            <StandTest profileId={profileId} crewId={crewId} crewName={crew.data?.name} focusSignal={standFocus} today={demo.today} />
           </div>
         )}
 
         {/* Kept mounted while the form is open so region selection and data survive. */}
         <div hidden={view !== 'dashboard'}>
+          {/* The signed-in person's own reminders (never shown while viewing someone else). */}
+          {!viewingOther && <DueToday reminders={reminders} onAction={handleReminder} onSeeAll={() => setBellOpen(true)} />}
           {onboard.isCmo && onOverview && <CrewOverview cards={crewCards} selfId={crewId} onOpen={openCrew} />}
           {onboard.isCmo && viewedId === crewId && (
             <p className="crew-overview__back">
@@ -427,6 +501,7 @@ function AppShell() {
             onOpenVital={openVital}
             today={demo.today}
             sensorsToday={!viewingOther && Boolean(sensorToday)}
+            drawerExtras={drawerExtras}
           />
           </div>
         </div>

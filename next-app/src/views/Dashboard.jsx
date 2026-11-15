@@ -49,6 +49,7 @@ export default function Dashboard({
   onOpenVital = () => {},
   today = null,
   sensorsToday = false,
+  drawerExtras = null, // { [indicatorId]: row } game rows for the body-map drawer (Activities: exercise time, not scored)
 }) {
   const profile = getProfile(profileId);
   const rules = environmentRules(profile);
@@ -114,7 +115,7 @@ export default function Dashboard({
           status={regionStatuses[openRegion]}
           latestVitals={latest}
           crewRecord={person.crewRecord}
-          personal={person.cardsById}
+          personal={drawerExtras ? { ...person.cardsById, ...drawerExtras } : person.cardsById}
           pinned={
             openRegion === 'limbs'
               ? (fitness?.rows ?? [])

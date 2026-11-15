@@ -3,6 +3,7 @@
 
 // Main tabs, kept short; the views used less often sit under "More".
 export const MORE_ITEMS = [
+  { id: 'activities', label: 'Activities' },
   { id: 'labs', label: 'Lab baseline' },
   { id: 'standtest', label: 'Stand test' },
   { id: 'about', label: 'About' },

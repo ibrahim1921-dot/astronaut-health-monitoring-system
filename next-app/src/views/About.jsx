@@ -5,6 +5,7 @@ import StatusIcon from '../components/StatusIcon.jsx';
 import { accessText } from '../lib/accessLog.js';
 import { crewNameFor } from '../lib/provenance.js';
 import { environmentFile, fitnessFile } from '../data/bundled.js';
+import { APP_REMINDER_SCHEDULE, REMINDER_SETTINGS, TEAM_SET, quietHoursText, settingsLine } from '../content/reminderSchedule.js';
 
 const nameOf = (id) => INDICATOR_NAMES[id] ?? id;
 
@@ -78,7 +79,39 @@ function YourData({ views, emergencies = [] }) {
   );
 }
 
-export default function About({ viewsOfMe = [], emergenciesOfMe = [] }) {
+/** "Allow reminders on this device": browser notifications while the app is open, never in quiet hours. */
+function ReminderSettings({ notify }) {
+  if (!notify) return null;
+  const unavailable = notify.permission === 'unsupported' || notify.permission === 'denied';
+  const on = notify.enabled && notify.permission === 'granted';
+  return (
+    <section className="card card--lg" aria-labelledby="reminder-settings-title">
+      <h2 id="reminder-settings-title" className="card__title">
+        Reminders
+      </h2>
+      <label className="switch">
+        <input
+          type="checkbox"
+          role="switch"
+          className="switch__input"
+          checked={on}
+          disabled={unavailable}
+          aria-describedby="reminder-settings-help"
+          onChange={(e) => notify.set(e.target.checked)}
+        />
+        <span className="switch__track" aria-hidden="true" />
+        <span className="switch__label">Allow reminders on this device</span>
+      </label>
+      <p id="reminder-settings-help" className="muted">
+        {unavailable
+          ? 'Notifications are off on this device; the bell still shows what’s due.'
+          : `A browser notification only while the app is open, at most once per reminder a day, none during quiet hours (${quietHoursText()} · ${TEAM_SET}). No sounds.`}
+      </p>
+    </section>
+  );
+}
+
+export default function About({ viewsOfMe = [], emergenciesOfMe = [], notify = null }) {
   const teamSet = LIMITS.filter((l) => l.team_set);
 
   return (
@@ -103,6 +136,8 @@ export default function About({ viewsOfMe = [], emergenciesOfMe = [] }) {
       </section>
 
       <YourData views={viewsOfMe} emergencies={emergenciesOfMe} />
+
+      <ReminderSettings notify={notify} />
 
       <section className="card card--lg" aria-labelledby="how-title">
         <h2 id="how-title" className="card__title">
@@ -265,6 +300,26 @@ export default function About({ viewsOfMe = [], emergenciesOfMe = [] }) {
               </span>
             </li>
           ))}
+        </ul>
+        <h3 className="card__title about__sub">Reminders</h3>
+        <ul className="limits__list about__teamset" aria-label="Reminder schedule">
+          {APP_REMINDER_SCHEDULE.kinds.map((k) => (
+            <li key={k.id} className="limits__item">
+              <span className="limits__group-title">
+                {k.title}
+                {k.cmoOnly && <span className="muted"> (CMO)</span>}
+              </span>
+              <span className="limits__rule">
+                {k.when}. Done when: {k.done.charAt(0).toLowerCase() + k.done.slice(1)}. · {TEAM_SET}
+              </span>
+            </li>
+          ))}
+          <li className="limits__item">
+            <span className="limits__group-title">Timing</span>
+            <span className="limits__rule">
+              {settingsLine()}; the last {REMINDER_SETTINGS.lookbackDays} days are counted · {TEAM_SET}
+            </span>
+          </li>
         </ul>
       </section>
     </div>
