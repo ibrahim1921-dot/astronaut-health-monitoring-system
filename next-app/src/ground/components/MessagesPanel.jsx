@@ -117,7 +117,15 @@ function SentList({ messages, profile }) {
   return (
     <section className="gr-card gr-panel" aria-labelledby="gr-sent-title">
       <h3 id="gr-sent-title">Sent</h3>
-      {!messages.length && <p className="gr-muted">Nothing sent from this browser yet.</p>}
+      {!messages.length && (
+        <div className="gr-empty">
+          <span className="gr-empty__icon">
+            <Icon name="messages" size={24} />
+          </span>
+          <h3>No advice sent yet</h3>
+          <p className="gr-muted">Write to the CMO or a crew member. Each message shows when it will arrive, given the signal delay.</p>
+        </div>
+      )}
       <ol className="gr-sent">
         {messages.map((m) => {
           const s = status(m, now);
@@ -140,7 +148,7 @@ function SentList({ messages, profile }) {
           );
         })}
       </ol>
-      <p className="gr-muted">&ldquo;Read&rdquo; appears once the crew app has an inbox (coming later).</p>
+      <p className="gr-muted">&ldquo;Read&rdquo; appears when the CMO opens the message from the bell in the crew app. Messages to other crew members show Delivered.</p>
     </section>
   );
 }

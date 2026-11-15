@@ -5,9 +5,13 @@
 import crewFile from '../../data/crew.json' with { type: 'json' };
 import standFile from '../../data/standtests.json' with { type: 'json' };
 import environmentFile from '../../data/environment.json' with { type: 'json' };
+import fitnessFile from '../../data/fitness.json' with { type: 'json' };
 import { seedAll } from '../../lib/seedRows.js';
 
-export { crewFile, standFile, environmentFile };
+export { crewFile, standFile, environmentFile, fitnessFile };
+
+/** In-flight grip weeks per crew member (same as hooks/useReminders.js fitnessWeeksOf). */
+export const fitnessWeeksOf = (crewId) => fitnessFile.crew.find((c) => c.crewId === crewId)?.inflight_grip ?? [];
 
 /** The person's crew.json days, oldest first (same as data/bundled.js crewDaysOf). */
 export const crewDaysOf = (crewId) => {

@@ -1,4 +1,5 @@
 import '../../ground/styles/ground.css';
+import '../../ground/styles/ground-extra.css';
 
 export const metadata = {
   title: 'Mission Control · Flight surgeon',
