@@ -2,6 +2,7 @@ import { Barlow, Barlow_Semi_Condensed } from 'next/font/google';
 import '../styles/theme.css';
 import '../styles/app.css';
 import '../styles/emergency.css';
+import '../styles/why.css';
 
 // theme.css reads these variables in --font-ui and --font-number.
 const barlow = Barlow({

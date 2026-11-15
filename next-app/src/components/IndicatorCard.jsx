@@ -4,6 +4,7 @@ import Sparkline from './Sparkline.jsx';
 import LimitsInfo from './LimitsInfo.jsx';
 import ActionCard, { CRISIS_STEPS } from './ActionCard.jsx';
 import ProvenanceChip from './ProvenanceChip.jsx';
+import { WhySection } from './WhyItMatters.jsx';
 
 /** Status chip, or the reason a reading is missing today (never shown as "Normal"). */
 export function StatusOrMissing({ indicator }) {
@@ -26,7 +27,8 @@ export function IndicatorAction({ indicator, profile }) {
   );
 }
 
-export default function IndicatorCard({ indicator, profile }) {
+/** @param {{ indicator, profile, showWhy?: boolean }} props  showWhy: the Vitals detail adds "What to do" and "Why it matters in space" */
+export default function IndicatorCard({ indicator, profile, showWhy = false }) {
   const { name, value, unit, status, trend, trendText, history, limitKey, sample, usual } = indicator;
   return (
     <article className="card indicator">
@@ -54,6 +56,7 @@ export default function IndicatorCard({ indicator, profile }) {
         <TrendIndicator trend={trend} text={trendText} />
         <Sparkline values={history} status={status} />
       </div>
+      {showWhy && <WhySection id={indicator.id} status={indicator.missing || sample ? null : status} />}
       {limitKey && <LimitsInfo limitKey={limitKey} usual={usual} />}
     </article>
   );

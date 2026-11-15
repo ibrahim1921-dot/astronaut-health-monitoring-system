@@ -21,6 +21,7 @@ import { limitOf } from '../content/limits.js';
 import StatusChip from '../components/StatusChip.jsx';
 import SourceLabel from '../components/SourceLabel.jsx';
 import ErrorPanel from '../components/ErrorPanel.jsx';
+import { WhyCard } from '../components/WhyItMatters.jsx';
 
 const GCR = '#3987e5';
 const SAA = '#c98500';
@@ -159,6 +160,17 @@ export default function Environment() {
 
           {details && (
           <>
+          <section className="card card--lg" aria-labelledby="env-why-title">
+            <h2 id="env-why-title" className="card__title">
+              Why it matters
+            </h2>
+            <div className="why__grid">
+              <WhyCard id="radiation" title="Radiation" />
+              <WhyCard id="cabin_co2" title="Cabin CO₂" status={today?.result.co2.status} />
+              <WhyCard id="cabin_temperature" title="Cabin temperature" status={today?.result.temperature.status} />
+              <WhyCard id="cabin_humidity" title="Cabin humidity" status={today?.result.humidity.status} />
+            </div>
+          </section>
           <section className="card card--lg" aria-labelledby="days-title">
             <div className="card__head">
               <h2 id="days-title" className="card__title">

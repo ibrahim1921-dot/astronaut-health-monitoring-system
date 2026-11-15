@@ -113,6 +113,8 @@ export default function Dashboard({
               : (DRAWER_PINS[openRegion] ?? []).map((id) => person.cardsById[id]).filter(Boolean)
           }
           onClose={() => setOpenRegion(null)}
+          vitalIds={readings.map((r) => r.id)}
+          onOpenVital={onOpenVital}
           getReturnTarget={returnTarget}
           profile={profile}
           onStartStandTest={
