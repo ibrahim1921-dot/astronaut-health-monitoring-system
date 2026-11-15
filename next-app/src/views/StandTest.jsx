@@ -28,6 +28,7 @@ import ErrorPanel from '../components/ErrorPanel.jsx';
 import StandTestChart from '../components/StandTestChart.jsx';
 import ActionCard from '../components/ActionCard.jsx';
 import LimitsInfo from '../components/LimitsInfo.jsx';
+import { WhyLine } from '../components/WhyItMatters.jsx';
 
 const REST_SECONDS = 5 * 60;
 const MARK_1 = 60;
@@ -367,6 +368,7 @@ export default function StandTest({ profileId, crewId, crewName: nameProp, focus
               A check of how heart rate and BP respond when you stand up after lying down. Compared with general limits
               and with this person&apos;s own preflight tests.
             </p>
+            <WhyLine id="stand_test" />
           </div>
           <div className="stand__controls">
             <p className="stand__person">

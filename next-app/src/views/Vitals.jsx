@@ -21,7 +21,7 @@ export default function Vitals({ cards, selectedId, onSelect, profile, personNam
         <ReadingTiles cards={cards} selectedId={selected?.id} onOpen={onSelect} layout="list" label="Readings" />
       </section>
       <div className="vitals__detail" aria-live="polite">
-        {selected && <IndicatorCard indicator={selected} profile={profile} />}
+        {selected && <IndicatorCard indicator={selected} profile={profile} showWhy />}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@
 // and the plain-language checks behind them.
 
 import { READING_FIELDS } from '../lib/vitalsCheckin.js';
+import { WhyLine } from './WhyItMatters.jsx';
 
 /** One vitals value: a plain message for the person, or null when it is plausible. */
 export function checkVital(key, text) {
@@ -109,8 +110,9 @@ export function NumberField({ field, value, onChange, error, hint, idPrefix = 'v
   );
 }
 
-export function HowTo({ howTo }) {
+export function HowTo({ howTo, whyId = null }) {
   return (
+    <>
     <dl className="howto">
       <div className="howto__item">
         <dt>How</dt>
@@ -125,5 +127,7 @@ export function HowTo({ howTo }) {
         <dd>{howTo.skew}</dd>
       </div>
     </dl>
+    {whyId && <WhyLine id={whyId} className="howto__why" />}
+    </>
   );
 }

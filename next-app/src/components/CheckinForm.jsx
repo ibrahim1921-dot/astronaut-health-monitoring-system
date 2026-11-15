@@ -496,7 +496,7 @@ export default function CheckinForm({
           {onVitals ? (
             <form ref={formRef} onSubmit={next} noValidate key={screen.id}>
               <h3 className="vstep__title">{screen.title}</h3>
-              <HowTo howTo={screen.howTo} />
+              <HowTo howTo={screen.howTo} whyId={screen.id} />
               {screen.fields.map((f) =>
                 f.kind === 'scale' ? (
                   <SegmentedField

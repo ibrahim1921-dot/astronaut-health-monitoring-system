@@ -95,7 +95,7 @@ function SensorRow({ screen, sensorDay, state, values, errors, status, onConfirm
 
       {showInput && (
         <div className="sensor-row__manual">
-          <HowTo howTo={screen.howTo} />
+          <HowTo howTo={screen.howTo} whyId={screen.id} />
           {screen.fields.map((f) => (
             <NumberField
               key={f.key}

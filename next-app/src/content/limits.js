@@ -98,6 +98,31 @@ SRC.nasa_eclss = {
   source_title: 'Environmental Control & Life Support System technical brief: operating limit 18 °C/75% to 27 °C/25% humidity',
   source_url: 'https://www.nasa.gov/wp-content/uploads/2023/12/ochmo-tb-002-eclss.pdf',
 };
+// "Why it matters in space" sources (content/whyItMatters.js). Not health limits: no LIMITS entry uses them.
+SRC.stahn_2017 = {
+  source_short: 'Stahn 2017',
+  source_name: 'Stahn A.C. et al. (2017), Scientific Reports 7:16180',
+  source_title: 'Increased core body temperature in astronauts during long-duration space missions',
+  source_url: null,
+};
+SRC.barger_2014 = {
+  source_short: 'Barger 2014',
+  source_name: 'Barger L.K. et al. (2014), Lancet Neurology 13:904–912',
+  source_title: 'Prevalence of sleep deficiency and use of hypnotic drugs in astronauts before, during, and after spaceflight',
+  source_url: null,
+};
+SRC.nasa_hrp_hazards = {
+  source_short: 'NASA HRP',
+  source_name: 'NASA Human Research Program',
+  source_title: 'Five hazards of human spaceflight',
+  source_url: 'https://www.nasa.gov/hrp/hazards',
+};
+SRC.nasa_std_3001_v1 = {
+  source_short: 'NASA-STD-3001 Vol. 1',
+  source_name: 'NASA-STD-3001 Volume 1 (crew health)',
+  source_title: 'NASA-STD-3001 Volume 1, crew health, including the 600 mSv career effective dose limit',
+  source_url: null,
+};
 // Emergency guide sources (content/emergency.js). Not health limits: no LIMITS entry uses them.
 SRC.cpr_micro_2020 = {
   source_short: 'Microgravity CPR guideline 2020',
@@ -272,3 +297,6 @@ export const EMERGENCY_SOURCES = {
   cpr_micro_2020: { key: 'cpr_micro_2020', ...SRC.cpr_micro_2020, team_set: false },
   team: { key: 'team', ...TEAM, source_short: 'Team-set' },
 };
+
+/** Looks up a source by SRC key for the "Why it matters in space" panels; 'team' is Team-set. Null if unknown. */
+export const sourceFor = (key) => (key === 'team' ? { key, ...TEAM } : SRC[key] ? { key, ...SRC[key], team_set: false } : null);
