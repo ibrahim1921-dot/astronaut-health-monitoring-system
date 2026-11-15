@@ -1,9 +1,9 @@
 'use client';
 
 // The emergency guide: a full-screen overlay with a solid dark background (no glass blur), opened from
-// the Emergency button or the red band. Escape does nothing here: only "End emergency" closes the guide
-// (the start screen can be cancelled while nothing has been recorded yet, and the live view of someone
-// else's emergency can go back to the app).
+// the Emergency button or the red band. Escape does nothing here. The start screen can be cancelled while
+// nothing has been recorded yet. Once an emergency exists, "Back to the app" leaves it open (the red band
+// brings you back to it) and only "End emergency" ends it.
 
 import { useEffect, useRef, useState } from 'react';
 import { useEmergency } from '../hooks/useEmergency.jsx';
@@ -291,15 +291,14 @@ function LiveView({ em, act, ctx, summary, mine }) {
       </div>
       <CopySummary text={summary} />
       <div className="emg-nav">
-        {mine && !em.ended_at ? (
+        {mine && !em.ended_at && (
           <button type="button" className="emg-btn emg-btn--ghost" onClick={() => act.show('guide')}>
             Back to the guide
           </button>
-        ) : (
-          <button type="button" className="emg-btn emg-btn--ghost" onClick={act.close}>
-            Back to the app
-          </button>
         )}
+        <button type="button" className="emg-btn emg-btn--ghost" onClick={act.close}>
+          Back to the app
+        </button>
         {!em.ended_at && ctx.canAct && (
           <button type="button" className="emg-btn emg-btn--end" onClick={() => act.show('end')}>
             End emergency
@@ -461,6 +460,9 @@ export default function EmergencyGuide() {
           </label>
           <button type="button" className="emg-btn emg-btn--ghost" onClick={() => act.show('live')}>
             Log &amp; summary
+          </button>
+          <button type="button" className="emg-btn emg-btn--ghost" onClick={act.close} title="The emergency stays open: tap the red band to come back">
+            Back to the app
           </button>
           <button type="button" className="emg-btn emg-btn--end" onClick={() => act.show('end')}>
             End emergency

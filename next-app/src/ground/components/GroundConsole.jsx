@@ -72,7 +72,7 @@ function Header({ info }) {
         <dl className="gr-strip">
           <div className="gr-strip__item">
             <dt>Mission</dt>
-            <dd>{profile.title ?? profile.label}</dd>
+            <dd title={profile.title ?? profile.label}>{profile.title ?? profile.label}</dd>
           </div>
           <div className="gr-strip__item">
             <dt>Mission day</dt>

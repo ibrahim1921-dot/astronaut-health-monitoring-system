@@ -99,6 +99,12 @@
   font-weight: 700;
   font-size: 0.95rem;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gr-strip__item {
+  min-width: 0;
+  max-width: 300px;
 }
 
 /* ---------- Band ---------- */
@@ -753,5 +759,21 @@
   .gr-top,
   .gr-nav {
     display: none !important;
+  }
+}
+
+/* The trends table scrolls inside its own card on narrow screens, never the whole page. */
+.gr-panel:has(.gr-trends) {
+  overflow-x: auto;
+}
+.gr-trends {
+  min-width: 520px;
+}
+.gr-console {
+  overflow-x: clip; /* clip, not hidden: hidden would break the sticky header and sidebar */
+}
+@media (max-width: 640px) {
+  .gr-trends td:nth-child(2) svg {
+    width: 120px;
   }
 }
