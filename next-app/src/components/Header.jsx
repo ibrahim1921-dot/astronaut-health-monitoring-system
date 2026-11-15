@@ -11,8 +11,8 @@ const updatedText = (iso) =>
     ? formatTime(iso)
     : new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
-/** @param {{ updatedAt?: string }} props  the signed-in person's newest reading time */
-export default function Header({ crew, profileId, onProfileChange, updatedAt, missionDay = null }) {
+/** @param {{ updatedAt?: string, viewMenu?: object }} props  updatedAt: the signed-in person's newest reading time; viewMenu: CMO only, see AccountMenu */
+export default function Header({ crew, profileId, onProfileChange, updatedAt, missionDay = null, viewMenu = null }) {
   const { data, loading, error, reload } = crew;
   const profile = getProfile(profileId);
 
@@ -84,7 +84,7 @@ export default function Header({ crew, profileId, onProfileChange, updatedAt, mi
       </div>
       <div className="container header__onboard">
         <OnboardStatus profileId={profile.id} />
-        <AccountMenu />
+        <AccountMenu viewMenu={viewMenu} />
       </div>
     </header>
   );
