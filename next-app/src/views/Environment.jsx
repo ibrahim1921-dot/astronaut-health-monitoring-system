@@ -16,6 +16,7 @@ import {
 } from 'recharts';
 import { useHealthData } from '../hooks/useHealthData.js';
 import { getEnvironment } from '../services/healthService.js';
+import { useMission } from '../hooks/useMission.jsx';
 import { cabinDayStatus, countByStatus } from '../lib/environmentStatus.js';
 import { limitOf } from '../content/limits.js';
 import StatusChip from '../components/StatusChip.jsx';
@@ -57,6 +58,9 @@ function Tile({ title, value, unit, status, note }) {
 /** Station environment: radiation dose timeline and cabin air (CO₂, temperature, humidity). */
 export default function Environment() {
   const env = useHealthData(getEnvironment);
+  // environment.json is ISS data (NASA RR-1); off the ISS it is labelled as a sample (lib/environmentRules.js).
+  const { profile, rules } = useMission();
+  const stationData = rules.stationData;
   const data = env.data;
   const [showAll, setShowAll] = useState(false);
   const [details, setDetails] = useState(false);
@@ -75,8 +79,14 @@ export default function Environment() {
         <div className="sleep__head">
           <div>
             <h2 id="env-title" className="view-title">
-              Station environment
+              {stationData.title}
             </h2>
+            {stationData.sample && (
+              <p className="env__sample">
+                <span className="chip chip--muted">{stationData.chip}</span>
+                <span className="muted"> Shown for {profile.title}: no data from this habitat yet.</span>
+              </p>
+            )}
             <p className="muted">
               The crew&apos;s health also depends on the air and radiation around them. These are measurements from inside the
               ISS during a 2014 mission, checked against NASA&apos;s spacecraft standards.

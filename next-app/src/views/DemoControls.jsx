@@ -11,6 +11,9 @@ import { EVENT_TYPES, EVENT_TYPE_IDS, addDays } from '../lib/sensorFeed.js';
 import { MISSION_END_DAY, eventStatus } from '../lib/demoState.js';
 import { clearVitalsCheckins, readAllVitals } from '../lib/vitalsCheckinStore.js';
 import SourceLabel from '../components/SourceLabel.jsx';
+import { MISSION_PROFILES } from '../constants/mission.js';
+import { useMission } from '../hooks/useMission.jsx';
+import { contextLine } from '../lib/environmentRules.js';
 
 const longDate = (iso) =>
   new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
@@ -49,6 +52,8 @@ function ConfirmClear({ count, unsynced, onConfirm, onCancel, returnRef }) {
 
 export default function DemoControls({ demo }) {
   const { version } = useOnboard();
+  // For judges: the mission environment can always be changed here (the header chip is CMO only).
+  const mission = useMission();
   const [crewId, setCrewId] = useState(crewRoster[1]?.id ?? crewRoster[0].id);
   const [type, setType] = useState('fever');
   const [confirming, setConfirming] = useState(false);
@@ -120,6 +125,29 @@ export default function DemoControls({ demo }) {
           “Advance one day” moves the clock for the whole crew. “Back to the start” resets the demo clock and events only;
           saved check-ins are kept. Check-ins dated after the demo date are hidden until the clock reaches them.
         </p>
+      </section>
+
+      <section className="card card--lg demo-panel" aria-labelledby="demo-env-title">
+        <h3 id="demo-env-title" className="card__title">
+          Mission environment
+        </h3>
+        <div className="demo-form">
+          <div className="field">
+            <label htmlFor="demo-env" className="field__label">
+              Where the crew are
+            </label>
+            <select id="demo-env" className="input demo-select" value={mission.profileId} onChange={(e) => mission.setProfile(e.target.value)} aria-describedby="demo-env-hint">
+              {MISSION_PROFILES.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
+              ))}
+            </select>
+            <p id="demo-env-hint" className="field__hint">
+              {contextLine(mission.profile)}. In the app only the Crew Medical Officer changes this, from the header chip.
+            </p>
+          </div>
+        </div>
       </section>
 
       <section className="card card--lg demo-panel" aria-labelledby="demo-event-title">

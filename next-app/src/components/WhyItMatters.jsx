@@ -8,6 +8,7 @@ import { firstSentence, whatToDo, whyFor } from '../content/whyItMatters.js';
 import { sourceFor } from '../content/limits.js';
 import { STATUS_LABELS } from '../constants/status.js';
 import StatusIcon from './StatusIcon.jsx';
+import { useMission } from '../hooks/useMission.jsx';
 
 /** "Source: Stahn 2017" / "Source: Team-set". */
 export function WhySource({ source }) {
@@ -31,8 +32,11 @@ export function WhySource({ source }) {
 
 /** "What to do" for a watch or alert result: status icon + word + the steps. Nothing for normal. */
 export function WhatToDo({ id, status, titleId }) {
-  const steps = whatToDo(id, status);
-  if (!steps.length) return null;
+  const { rules } = useMission();
+  const base = whatToDo(id, status);
+  if (!base.length) return null;
+  // On alert, one line on how fast Earth can help in this mission environment (lib/environmentRules.js).
+  const steps = status === 'alert' ? [...base, rules.escalation] : base;
   return (
     <section className={`why-todo why-todo--${status}`} aria-labelledby={titleId}>
       <h4 id={titleId} className="why-todo__title">

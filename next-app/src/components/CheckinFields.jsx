@@ -5,6 +5,8 @@
 
 import { READING_FIELDS } from '../lib/vitalsCheckin.js';
 import { WhyLine } from './WhyItMatters.jsx';
+import { useMission } from '../hooks/useMission.jsx';
+import { HOWTO_SCREENS } from '../lib/environmentRules.js';
 
 /** One vitals value: a plain message for the person, or null when it is plausible. */
 export function checkVital(key, text) {
@@ -110,9 +112,13 @@ export function NumberField({ field, value, onChange, error, hint, idPrefix = 'v
   );
 }
 
-export function HowTo({ howTo, whyId = null }) {
+/** `screenId`: blood pressure, heart rate and temperature also get the mission environment line. */
+export function HowTo({ howTo, whyId = null, screenId = whyId }) {
+  const { rules } = useMission();
+  const envLine = HOWTO_SCREENS.includes(screenId) ? rules.howTo : null;
   return (
     <>
+    {envLine && <p className="howto__env">{envLine}</p>}
     <dl className="howto">
       <div className="howto__item">
         <dt>How</dt>
