@@ -13,10 +13,10 @@ import { crewRoster } from '../mocks/crew.js';
 import { getProfile } from '../constants/mission.js';
 import { crewNameFor } from '../lib/provenance.js';
 import { canAct, cmoIsPatient, environmentFor, hasCompressions } from '../lib/emergency.js';
-import { CHEST_PAIN_STEPS, CMO_IS_PATIENT, COLLAPSE_STEPS, ENVIRONMENTS, EVENT_LABELS, FLOWS, POSITIONS } from '../content/emergency.js';
+import { CHEST_PAIN_STEPS, CMO_IS_PATIENT, COLLAPSE_STEPS, COLLAPSE_TOTAL, ENVIRONMENTS, EVENT_LABELS, FLOWS, POSITIONS } from '../content/emergency.js';
 import StepSource from './StepSource.jsx';
 import CprFigure from './CprFigure.jsx';
-import CprScreen from './CprScreen.jsx';
+import CprScreen, { DelayLine } from './CprScreen.jsx';
 import { EmergencyIcon } from './EmergencyButton.jsx';
 
 const firstName = (id) => (crewNameFor(id) ?? id ?? '').split(' ')[0];
@@ -152,13 +152,7 @@ function StepAction({ step, em, act, ctx }) {
     }
     return <p className="emg-status">The CMO does this. Make sure the CMO is on the way.</p>;
   }
-  if (step.action === 'delay') {
-    return (
-      <p className="emg-status">
-        A message takes {shortDelay(profile.delayText)} to reach Earth. <span className="emg-muted">({profile.label}: {profile.delayText})</span>
-      </p>
-    );
-  }
+  if (step.action === 'delay') return <DelayLine profile={profile} />;
   if (step.action === 'position') {
     return (
       <div className="emg-positions">
@@ -191,7 +185,7 @@ function StepScreen({ em, act, ctx, index, setIndex }) {
   return (
     <div className="emg-step">
       <p className="emg-step__count">
-        {FLOWS[em.flow].label} · Step {i + 1} of {em.flow === 'collapse' ? 8 : steps.length}
+        {FLOWS[em.flow].label} · Step {i + 1} of {em.flow === 'collapse' ? COLLAPSE_TOTAL : steps.length}
         {step.who === 'cmo' && <span className="emg-tag">CMO</span>}
       </p>
       <p ref={textRef} tabIndex={-1} className="emg-step__text">
@@ -475,7 +469,7 @@ export default function EmergencyGuide() {
         <CmoPatientNote em={em} />
         <div className="emg-body">
           {cpr && em.flow === 'collapse' ? (
-            <CprScreen em={em} act={act} audioRef={audioRef} onEnd={() => act.show('end')} />
+            <CprScreen em={em} act={act} audioRef={audioRef} profile={profile} onEnd={() => act.show('end')} />
           ) : (
             <StepScreen em={em} act={act} ctx={ctx} index={index} setIndex={setIndex} />
           )}

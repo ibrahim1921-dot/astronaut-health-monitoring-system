@@ -37,7 +37,9 @@ export const CHEST_PAIN_STEPS = [
   { id: 'medicines', source: 'team', text: 'Medicines only as directed by the CMO or the flight surgeon.' },
 ];
 
-/** Flow 2: collapsed / not responding. Steps 1–3 are screens; 4–8 are shown on the CPR screen. */
+/** Flow 2: collapsed / not responding. Steps 1–3 are screens; 4–10 are shown on the CPR screen. */
+// A CPR step may carry `notes: [{ id, text, source, environments? }]`: extra lines with their own source
+// label, shown only in the listed environments (all environments when `environments` is left out).
 export const COLLAPSE_STEPS = [
   { id: 'check', source: 'aha_erc', text: 'Check: do they respond? Are they breathing normally? Take no more than 10 seconds.' },
   { id: 'shout', source: 'aha_erc', action: 'alert', text: 'Shout for help and press “Alert the crew”. The app alerts the CMO.' },
@@ -46,19 +48,50 @@ export const COLLAPSE_STEPS = [
 
 export const CPR_STEPS = [
   { id: 'push', source: 'aha_erc', text: 'Push hard and fast: 100–120 a minute, 5–6 cm deep, with full recoil. Follow the beat on screen.' },
-  { id: 'breaths', source: 'aha_erc', text: 'If you are trained: 30 compressions, then 2 breaths. If not: keep doing compressions.' },
+  {
+    id: 'breaths',
+    source: 'aha_erc',
+    text: 'If you are trained: 30 compressions, then 2 breaths. If not: keep doing compressions.',
+    notes: [
+      {
+        id: 'airway_micro',
+        source: 'cpr_micro_2020',
+        environments: ['station', 'spacecraft'],
+        text: 'In weightlessness, give breaths or use an airway device only when the person is restrained and two rescuers are present. Until then, keep doing compressions.',
+      },
+    ],
+  },
   {
     id: 'aed',
     source: 'aha_erc',
     text: 'Send someone for the defibrillator (AED). Switch it on and follow its voice prompts as soon as it arrives.',
+    notes: [{ id: 'aed_clear', source: 'team', text: 'During a shock nobody touches the person, or anything metal they are touching.' }],
   },
+  { id: 'surgeon', source: 'team', who: 'cmo', action: 'delay', text: 'CMO: contact the flight surgeon.' },
   { id: 'swap', source: 'aha_erc', text: 'Swap the person doing compressions every 2 minutes. The app shows a swap timer.' },
   {
     id: 'continue',
     source: 'aha_erc',
     text: 'Keep going until they start breathing normally, or the CMO or flight surgeon tells you to stop.',
   },
+  {
+    id: 'watch',
+    source: 'team',
+    text: 'Stay with them and keep them held in place. Keep checking their breathing. If it stops, start compressions again.',
+  },
 ];
+
+/** Total Flow 2 steps (the step screens plus the CPR screen). */
+export const COLLAPSE_TOTAL = COLLAPSE_STEPS.length + CPR_STEPS.length;
+
+/** The CPR step shown after "Breathing normally" is pressed. */
+export const AFTER_BREATHING_STEP = 'watch';
+
+/** Index of a CPR step by id (-1 if unknown). */
+export const cprStepIndex = (id) => CPR_STEPS.findIndex((s) => s.id === id);
+
+/** A step's notes that apply in this environment. */
+export const notesFor = (step, environment) => (step.notes ?? []).filter((n) => !n.environments || n.environments.includes(environment));
 
 /** Compression position by environment. `figure` picks the inline SVG (components/CprFigure.jsx). */
 export const POSITIONS = {

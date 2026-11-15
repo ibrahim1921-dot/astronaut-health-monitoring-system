@@ -1,11 +1,23 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { CPR_STEPS, EVENT_LABELS } from '../content/emergency.js';
+import { AFTER_BREATHING_STEP, COLLAPSE_STEPS, COLLAPSE_TOTAL, CPR_STEPS, EVENT_LABELS, cprStepIndex, notesFor } from '../content/emergency.js';
 import { BEAT_PER_MINUTE, SWAP_EVERY_MS } from '../lib/emergency.js';
 import StepSource from './StepSource.jsx';
 
 const BEAT_MS = 60_000 / BEAT_PER_MINUTE; // 110 a minute ≈ 545 ms
+
+/** "about 20 min" from "about 20 min one-way (approximate …)". */
+const shortDelay = (text) => text.replace(/ one-way.*$/, '').replace(/ \(.*\)$/, '');
+
+/** "A message takes about 20 min to reach Earth." for a 'delay' step (Flow 1 and the CPR screen). */
+export function DelayLine({ profile }) {
+  return (
+    <p className="emg-status">
+      A message takes {shortDelay(profile.delayText)} to reach Earth. <span className="emg-muted">({profile.label}: {profile.delayText})</span>
+    </p>
+  );
+}
 
 /** true when the person asked for reduced motion. */
 export function useReducedMotion() {
@@ -70,9 +82,9 @@ const mmss = (ms) => {
 
 /**
  * CPR screen: compression beat at 110 a minute (pulse, or a large 1–30 count with reduced motion),
- * optional click sound, a 2-minute swap timer, steps 4–8 one at a time, and the big event buttons.
+ * optional click sound, a 2-minute swap timer, steps 4–10 one at a time, and the big event buttons.
  */
-export default function CprScreen({ em, act, audioRef, onEnd }) {
+export default function CprScreen({ em, act, audioRef, profile, onEnd }) {
   useWakeLock();
   const reduced = useReducedMotion();
   const [step, setStep] = useState(0);
@@ -162,10 +174,18 @@ export default function CprScreen({ em, act, audioRef, onEnd }) {
 
       <div className="emg-step emg-step--cpr">
         <p className="emg-step__count">
-          Step {step + 4} of 8
+          Step {step + COLLAPSE_STEPS.length + 1} of {COLLAPSE_TOTAL}
+          {s.who === 'cmo' && <span className="emg-tag">CMO</span>}
         </p>
         <p className="emg-step__text">{s.text}</p>
         <StepSource source={s.source} />
+        {s.action === 'delay' && profile && <DelayLine profile={profile} />}
+        {notesFor(s, em.environment).map((n) => (
+          <div key={n.id}>
+            <p className="emg-note">{n.text}</p>
+            <StepSource source={n.source} />
+          </div>
+        ))}
         <div className="emg-nav">
           <button type="button" className="emg-btn emg-btn--ghost" onClick={() => setStep(step - 1)} disabled={step === 0}>
             Back
@@ -183,7 +203,13 @@ export default function CprScreen({ em, act, audioRef, onEnd }) {
         <button type="button" className="emg-btn emg-btn--big" onClick={() => act.log('aed_shock')}>
           Shock given{logged('aed_shock').length ? ` (${logged('aed_shock').length})` : ''}
         </button>
-        <button type="button" className="emg-btn emg-btn--big" onClick={() => act.log('breathing_normally')} disabled={!running}>
+        <button type="button" className="emg-btn emg-btn--big" 
+          onClick={() => {
+            act.log('breathing_normally');
+            setStep(cprStepIndex(AFTER_BREATHING_STEP));
+          }}
+          disabled={!running}
+        >
           Breathing normally
         </button>
         {running ? (
