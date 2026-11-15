@@ -130,3 +130,21 @@ test('one source notices new check-ins and a new demo day (cache follows storage
 test('environment is environment.json', () => {
   assert.match(source().environment().source, /Environment/);
 });
+
+test('missed check-ins reach the console as the crew app counts them: CMO level at 2 days, ground at 3', () => {
+  assert.deepEqual(source().missedForGround(), [], 'nothing is missed on the first demo day');
+  storage.setItem(DEMO_KEY, JSON.stringify({ dayOffset: 4, events: [] }));
+  const s = source();
+  const ground = s.missedForGround();
+  assert.ok(ground.length >= 4, 'every crew member has missed 3+ days of check-ins');
+  assert.ok(ground.every((m) => m.missedDays >= 3));
+  const member = s.crewList().find((m) => m.id === 'crew-01');
+  assert.ok(member.missed.some((m) => m.kind === 'daily_checkin' && m.missedDays >= 3));
+});
+
+test('info() gives the mission day for the demo date', () => {
+  const info = source().info();
+  assert.equal(typeof info.missionDay, 'number');
+  storage.setItem(DEMO_KEY, JSON.stringify({ dayOffset: 3, events: [] }));
+  assert.equal(source().info().missionDay, info.missionDay + 2);
+});

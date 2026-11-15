@@ -103,7 +103,15 @@ export default function EmergencyPanel({ emergencies, onCompose }) {
           {open.length} open · {recent.length} ended in the last 7 days · read only, updated every 5 s. Event times use the real clock.
         </p>
       </div>
-      {!emergencies.length && <p className="gr-card gr-panel gr-muted">No open or recent emergencies in this browser.</p>}
+      {!emergencies.length && (
+        <div className="gr-empty">
+          <span className="gr-empty__icon">
+            <Icon name="clear" size={26} />
+          </span>
+          <h3>All clear</h3>
+          <p className="gr-muted">No open or recent emergencies. When a crew member presses Emergency in the crew app, it appears here with its live timeline.</p>
+        </div>
+      )}
       {open.map((em) => (
         <Emergency key={em.id} em={em} onCompose={onCompose} />
       ))}

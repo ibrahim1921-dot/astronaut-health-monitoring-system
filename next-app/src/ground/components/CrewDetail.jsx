@@ -5,7 +5,7 @@ import StatusChip from '../../components/StatusChip.jsx';
 import Sparkline from '../../components/Sparkline.jsx';
 import { ProvenanceChips } from '../../components/ProvenanceChip.jsx';
 import { dateText } from '../lib/delay.js';
-import { FreshnessChip, TimesLine } from './GroundBits.jsx';
+import { Avatar, FreshnessChip, Icon, TimesLine } from './GroundBits.jsx';
 
 function Trends({ trends }) {
   return (
@@ -122,15 +122,18 @@ export default function CrewDetail({ source, version, crewId, info, onBack, onCo
     );
   }
   const { member, trends, records } = d;
+  const missed = member.missed ?? [];
   return (
     <section aria-labelledby="gr-detail-title" className="gr-detail">
-      <div className="gr-section-head">
-        <button type="button" className="gr-btn gr-btn--ghost" onClick={onBack}>
-          ← Overview
-        </button>
-        <h2 id="gr-detail-title">
-          {member.name} <span className="gr-muted">· {member.title ?? member.role}</span>
-        </h2>
+      <button type="button" className="gr-back" onClick={onBack}>
+        <Icon name="back" /> Crew overview
+      </button>
+      <div className="gr-detail__hero">
+        <Avatar name={member.name} status={member.status} size={56} />
+        <div>
+          <h2 id="gr-detail-title">{member.name}</h2>
+          <span className="gr-muted">{member.title ?? member.role} · medical file</span>
+        </div>
         <div className="gr-detail__actions">
           <button type="button" className="gr-btn" onClick={() => onCompose({ to: 'cmo', subject: `About ${member.name}` })}>
             Message CMO
@@ -141,24 +144,59 @@ export default function CrewDetail({ source, version, crewId, info, onBack, onCo
         </div>
       </div>
 
-      <div className="gr-card gr-panel gr-detail__status">
-        <div className="gr-detail__row">
-          <StatusChip status={member.status} icon />
-          <FreshnessChip freshness={member.freshness} />
-        </div>
-        {member.reasons.length ? (
-          <ul className="gr-crew__reasons">
-            {member.reasons.map((r) => (
-              <li key={r}>{r}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="gr-muted">No reasons flagged on the latest reading.</p>
-        )}
-        <p>
-          Latest record: <TimesLine recordedAt={member.lastRecordedAt} profile={info.profile} />
+      {member.openEmergency && (
+        <p className={`gr-flag gr-flag--${member.openEmergency.drill ? 'drill' : 'real'}`}>
+          <Icon name="warning" /> Open emergency{member.openEmergency.drill ? ' · DRILL' : ''}: follow it under Emergencies.
         </p>
-        <p className="gr-muted gr-rule">{info.freshnessRule.label}.</p>
+      )}
+
+      <div className="gr-detail__grid">
+        <div className="gr-card gr-panel gr-detail__status">
+          <h3>Current status</h3>
+          <div className="gr-detail__row">
+            <StatusChip status={member.status} icon />
+            <FreshnessChip freshness={member.freshness} />
+          </div>
+          {member.reasons.length ? (
+            <ul className="gr-list">
+              {member.reasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="gr-muted">No reasons flagged on the latest reading.</p>
+          )}
+          <p className="gr-muted">
+            Latest record: <TimesLine recordedAt={member.lastRecordedAt} profile={info.profile} />
+          </p>
+        </div>
+        <div className="gr-card gr-panel">
+          <h3>
+            <Icon name="missed" /> Routine
+          </h3>
+          {missed.length ? (
+            <>
+              <ul className="gr-list">
+                {missed.map((m) => (
+                  <li key={m.reminderId}>
+                    {m.text}
+                    {m.missedDays >= 3 && <span className="gr-muted"> · escalated to ground</span>}
+                  </li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                className="gr-btn gr-btn--ghost"
+                onClick={() => onCompose({ to: 'cmo', subject: `${member.name} has missed routine measurements`, related: { kind: null, id: null } })}
+              >
+                Ask the CMO to follow up
+              </button>
+            </>
+          ) : (
+            <p className="gr-muted">No check-ins or tests missed for 2 days or more.</p>
+          )}
+          <p className="gr-muted gr-rule">CMO is told after 2 missed days, the ground after 3 (team-set). {info.freshnessRule.label}.</p>
+        </div>
       </div>
 
       <Trends trends={trends} />

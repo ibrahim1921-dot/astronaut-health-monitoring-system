@@ -20,8 +20,12 @@ import { isExamRecord, isSensorRecord, sensorRecords, timelineItems } from '../.
 import { buildTimeline, VITALS_ROWS, READING_FIELDS } from '../../lib/vitalsCheckin.js';
 import { provenanceOf, recordChips } from '../../lib/provenance.js';
 import { readAllVitals, readVitalsCheckins } from '../../lib/vitalsCheckinStore.js';
-import { readAllStandTests, newRecordId } from '../../lib/standTestStore.js';
-import { crewDaysOf, deviceSeed, environmentFile } from './data.js';
+import { readAllStandTests, readStandTests, newRecordId } from '../../lib/standTestStore.js';
+import { readGripLog } from '../../lib/gripLog.js';
+import { readActivities } from '../../lib/activityStore.js';
+import { readReminderState } from '../../lib/reminderStore.js';
+import { groundEscalations, missedItemsFor } from '../../lib/reminders.js';
+import { crewDaysOf, deviceSeed, environmentFile, fitnessWeeksOf, LAST_MISSION_DAY } from './data.js';
 import { demoClock } from './clock.js';
 import { arrivedOnEarthAt, delayLabel, profileFrom } from './delay.js';
 import { FRESHNESS_RULE, freshnessOf } from './freshness.js';
@@ -98,7 +102,36 @@ export function createLocalGroundSource({ storage, realNow = () => new Date(), n
     return { readings, sensorDays, cards };
   }
 
-  function memberFrom(ctx, card) {
+  /**
+   * Missed routine items per crew member, computed exactly as the crew app's reminders hook does
+   * (hooks/useReminders.js): the same records, sensor days, profile and demo date, with no snoozes.
+   * The CMO sees an item from 2 missed days; the ground list starts at 3 (lib/reminders.js).
+   */
+  function missedFrom(ctx) {
+    const arrivalDate = readReminderState(storage).arrival?.[ctx.profile.id] ?? null;
+    const activities = readActivities(storage);
+    const now = ctx.real.getTime();
+    return deviceSeed().crew.flatMap((c) =>
+      missedItemsFor({
+        crewId: c.id,
+        records: {
+          checkins: readVitalsCheckins(c.id),
+          standTests: readStandTests(c.id),
+          grip: readGripLog(storage, c.id),
+          crewDays: crewDaysOf(c.id),
+          fitnessWeeks: fitnessWeeksOf(c.id),
+          arrivalDate,
+          activities: activities.filter((r) => r.crew_id === c.id),
+        },
+        timeline: ctx.sensorDays[c.id] ?? [],
+        profile: ctx.profile,
+        demoDate: ctx.clock.today,
+        now,
+      }),
+    );
+  }
+
+  function memberFrom(ctx, card, missed = []) {
     const mine = ctx.readings.filter((r) => r.crew_id === card.id).sort(newestFirst);
     const lastRecordedAt = mine[0]?.recorded_at ?? null;
     const lastArrivedAt = lastRecordedAt ? arrivedOnEarthAt(lastRecordedAt, ctx.profile) : null;
@@ -115,14 +148,16 @@ export function createLocalGroundSource({ storage, realNow = () => new Date(), n
       lastArrivedAt,
       freshness: freshnessOf(lastArrivedAt, ctx.clock.now),
       openEmergency: open[0] ? { id: open[0].id, drill: open[0].drill } : null,
+      missed: missed.filter((m) => m.crewId === card.id),
       latestVitals: card.vitals,
     };
   }
 
   function crewListFrom(ctx) {
     const rank = (m) => (m.openEmergency ? (m.openEmergency.drill ? 0.5 : 0) : SEVERITY[m.status] ?? 4);
+    const missed = missedFrom(ctx);
     // buildCrewCards order (worst first, then crew order) breaks ties.
-    return ctx.cards.map((c, i) => ({ m: memberFrom(ctx, c), i })).sort((a, b) => rank(a.m) - rank(b.m) || a.i - b.i).map((x) => x.m);
+    return ctx.cards.map((c, i) => ({ m: memberFrom(ctx, c, missed), i })).sort((a, b) => rank(a.m) - rank(b.m) || a.i - b.i).map((x) => x.m);
   }
 
   function timelineFrom(ctx, crewId) {
@@ -175,7 +210,13 @@ export function createLocalGroundSource({ storage, realNow = () => new Date(), n
     /** Demo date, mission profile and labels for the header. */
     info() {
       const ctx = context();
-      return { today: ctx.clock.today, profile: ctx.profile, delayLabel: delayLabel(ctx.profile), freshnessRule: FRESHNESS_RULE };
+      return {
+        today: ctx.clock.today,
+        missionDay: LAST_MISSION_DAY + ctx.clock.offset,
+        profile: ctx.profile,
+        delayLabel: delayLabel(ctx.profile),
+        freshnessRule: FRESHNESS_RULE,
+      };
     },
     /** Every crew member: open emergency first, then alert, watch, normal. */
     crewList() {
@@ -217,6 +258,10 @@ export function createLocalGroundSource({ storage, realNow = () => new Date(), n
           profile: ctx.profile,
         }),
       }));
+    },
+    /** Missed routine items that reached the ground level (3+ days), worst first. */
+    missedForGround() {
+      return groundEscalations(missedFrom(context()));
     },
     /** The console band, or null when no emergency is open. */
     band() {

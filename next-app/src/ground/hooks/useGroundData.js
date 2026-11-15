@@ -11,9 +11,10 @@ import { RECORDS_CHANGED_EVENT } from '../../lib/standTestStore.js';
 import { EMERGENCY_CHANGED_EVENT } from '../lib/emergencyView.js';
 import { GROUND_MESSAGES_CHANGED_EVENT } from '../lib/messages.js';
 import { createLocalGroundSource } from '../lib/groundSource.js';
+import { REMINDERS_CHANGED_EVENT } from '../../lib/reminderStore.js';
 
 export const REFRESH_MS = 5000;
-const EVENTS = [DEMO_CHANGED_EVENT, RECORDS_CHANGED_EVENT, EMERGENCY_CHANGED_EVENT, GROUND_MESSAGES_CHANGED_EVENT, 'storage'];
+const EVENTS = [DEMO_CHANGED_EVENT, RECORDS_CHANGED_EVENT, EMERGENCY_CHANGED_EVENT, GROUND_MESSAGES_CHANGED_EVENT, REMINDERS_CHANGED_EVENT, 'storage'];
 
 export function useGroundData() {
   const [source, setSource] = useState(null);
@@ -41,6 +42,7 @@ export function useGroundData() {
       return {
         info: source.info(),
         crew: source.crewList(),
+        missed: source.missedForGround(),
         emergencies: source.emergencies(),
         band: source.band(),
         messages: source.messages(),
