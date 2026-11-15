@@ -21,6 +21,8 @@ import { SCORED_LABEL } from '../lib/scoring.js';
 import { useOnboard } from '../hooks/useOnboard.jsx';
 import SyncBadge from '../components/SyncBadge.jsx';
 import { getProfile } from '../constants/mission.js';
+import { environmentRules } from '../lib/environmentRules.js';
+import EnvironmentIcon from '../components/EnvironmentIcon.jsx';
 import { formatTime } from '../utils/format.js';
 import StatusChip from '../components/StatusChip.jsx';
 import SourceLabel from '../components/SourceLabel.jsx';
@@ -139,6 +141,7 @@ export default function StandTest({ profileId, crewId, crewName: nameProp, focus
   const seeded = useHealthData(() => getStandTests());
   const [demoMode, setDemoMode] = useStoredSetting('ahm.demoMode.v1', false, (v) => typeof v === 'boolean');
   const profile = getProfile(profileId);
+  const standRules = environmentRules(profile).standTest;
 
   const roster = seeded.data?.crew ?? [];
 
@@ -438,11 +441,26 @@ export default function StandTest({ profileId, crewId, crewName: nameProp, focus
               <p className="muted">
                 The test takes about 9 minutes: 5 min lying down, then 3 min standing still. You can stop at any time.
               </p>
-              <div className="checkin__actions">
-                <button type="button" className="btn btn--primary btn--lg" onClick={start} disabled={!crewId}>
-                  Start: lie down
-                </button>
-              </div>
+              {standRules.available ? (
+                <>
+                  <p className="stand__gravity">
+                    <EnvironmentIcon setting={profile.setting} size={16} />
+                    {profile.title} · gravity about {standRules.gravity}
+                  </p>
+                  <div className="checkin__actions">
+                    <button type="button" className="btn btn--primary btn--lg" onClick={start} disabled={!crewId}>
+                      Start: lie down
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p className="stand__unavailable" role="note">
+                  <EnvironmentIcon setting={profile.setting} size={18} />
+                  <span>
+                    <strong>Not available: {profile.title}.</strong> {standRules.reason}
+                  </span>
+                </p>
+              )}
             </div>
           )}
 

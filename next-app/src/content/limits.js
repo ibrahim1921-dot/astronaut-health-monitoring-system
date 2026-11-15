@@ -141,6 +141,13 @@ SRC.aha_erc = {
     { label: 'European Resuscitation Council guidelines', url: 'https://cprguidelines.eu' },
   ],
 };
+// Mission environment source (constants/mission.js gravity line). Not a health limit: no LIMITS entry uses it.
+SRC.nasa_planetary_facts = {
+  source_short: 'NASA Planetary Fact Sheet',
+  source_name: 'NASA Planetary Fact Sheet',
+  source_title: 'NASA Planetary Fact Sheet: surface gravity of the Moon (about 0.17 g) and Mars (about 0.38 g)',
+  source_url: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/',
+};
 
 const cited = (key) => ({ ...SRC[key], team_set: false });
 

@@ -15,7 +15,7 @@ export const FLOWS = {
 export const ENVIRONMENTS = {
   station: { id: 'station', label: 'Space station' },
   spacecraft: { id: 'spacecraft', label: 'Spacecraft (small cabin)' },
-  moon: { id: 'moon', label: 'Moon base' },
+  moon: { id: 'moon', label: 'Moon or Mars base (partial gravity)' },
 };
 
 /** Flow 1: chest pain, the person is awake. */
@@ -122,7 +122,7 @@ export const POSITIONS = {
       id: 'kneel',
       source: 'team',
       figure: 'kneel',
-      text: 'Lay them on their back on the floor and give standard kneeling CPR. In one-sixth gravity your body weight helps less, so lock your arms and push from your shoulders, and swap more often if you tire.',
+      text: 'Lay them on their back on the floor and give standard kneeling CPR. In partial gravity (one-sixth on the Moon, about a third on Mars) your body weight helps less, so lock your arms and push from your shoulders, and swap more often if you tire.',
       note: 'The 2020 microgravity guideline does not cover partial gravity; this step is team-set.',
     },
   ],

@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useHealthData } from './hooks/useHealthData.js';
-import { useStoredSetting } from './hooks/useStoredSetting.js';
-import { DEFAULT_PROFILE_ID, PROFILES_BY_ID, getProfile } from './constants/mission.js';
+import { MissionProvider, useMission } from './hooks/useMission.jsx';
+import { getProfile } from './constants/mission.js';
 import { getCrewMember } from './services/healthService.js';
 import { OnboardProvider, useOnboard } from './hooks/useOnboard.jsx';
 import { readVitalsCheckins } from './lib/vitalsCheckinStore.js';
@@ -87,7 +87,12 @@ function Gate() {
   const screen = screenFor(onboard);
   if (screen === 'loading') return <main className="landing" aria-busy="true" />;
   if (screen === 'landing') return <Landing />;
-  return <AppShell key={onboard.crewId} />;
+  // The mission environment is mission-wide: everyone sees it, only the CMO changes it from the header.
+  return (
+    <MissionProvider canChange={onboard.isCmo}>
+      <AppShell key={onboard.crewId} />
+    </MissionProvider>
+  );
 }
 
 function AppShell() {
@@ -97,7 +102,7 @@ function AppShell() {
   // Lena (CMO) gets her personal tabs plus the whole-crew tab; crew never get the CMO tab.
   const tabs = tabsFor(onboard.account);
   const [view, setView] = useState('dashboard'); // 'dashboard' | 'checkin' | 'sleep' | 'labs' | 'environment' | 'standtest' | 'about'
-  const [profileId, setProfileId] = useStoredSetting('ahm.missionProfile.v1', DEFAULT_PROFILE_ID, (v) => v in PROFILES_BY_ID);
+  const { profileId } = useMission(); // ahm.missionProfile.v1, see hooks/useMission.jsx
   // Kept mounted once opened, so switching tabs mid-test does not lose the timers or readings.
   const [standVisited, setStandVisited] = useState(false);
   const [standFocus, setStandFocus] = useState(0);
@@ -314,7 +319,6 @@ function AppShell() {
       <Header
         crew={crew}
         profileId={profileId}
-        onProfileChange={setProfileId}
         updatedAt={latestVitals?.recorded_at}
         missionDay={demo.missionDay}
         viewMenu={viewMenu}

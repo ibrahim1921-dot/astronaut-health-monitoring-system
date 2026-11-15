@@ -49,8 +49,11 @@ const firstName = (name) => (typeof name === 'string' && name ? name.split(' ')[
 
 // ---------- Environment ----------
 
-/** Mission profile → where the crew are. Station profiles → station; transit / capsule → spacecraft; Moon surface → moon. */
-export const ENVIRONMENT_BY_PROFILE = { iss: 'station', mars: 'spacecraft', moon: 'moon' };
+/**
+ * Mission profile → where the crew are. Station → station; transit / capsule → spacecraft; a Moon or Mars
+ * surface base → moon (partial-gravity surface CPR; the database allows only these three environments).
+ */
+export const ENVIRONMENT_BY_PROFILE = { iss: 'station', lunar_transit: 'spacecraft', mars: 'spacecraft', moon: 'moon', mars_surface: 'moon' };
 export const environmentFor = (profileId) => ENVIRONMENT_BY_PROFILE[profileId] ?? 'station';
 
 // ---------- Record and events ----------

@@ -222,7 +222,7 @@ export default function ExamForm({ patientId, patientName, examiner, today = nul
           <h3 className="vstep__title" ref={stageRef} tabIndex={-1}>
             {screen.title}
           </h3>
-          <HowTo howTo={screen.howTo} />
+          <HowTo howTo={screen.howTo} screenId={screen.id} />
           <div className="exam__sensor">
             {sensorOf[screen.id] ? (
               <p>

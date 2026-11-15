@@ -9,6 +9,8 @@ import OverallHealthCard from '../components/OverallHealthCard.jsx';
 import ContextCard from '../components/ContextCard.jsx';
 import SourceLabel from '../components/SourceLabel.jsx';
 import { getProfile } from '../constants/mission.js';
+import { contextLine, environmentRules } from '../lib/environmentRules.js';
+import EnvironmentIcon from '../components/EnvironmentIcon.jsx';
 import { DRAWER_PINS } from '../lib/personCards.js';
 import { fitnessFor } from '../lib/fitness.js';
 import { fitnessFile } from '../data/bundled.js';
@@ -49,6 +51,7 @@ export default function Dashboard({
   sensorsToday = false,
 }) {
   const profile = getProfile(profileId);
+  const rules = environmentRules(profile);
   // Bones and muscles: this person's grip strength against their own preflight value (lib/fitness.js).
   const fitness = fitnessFor(crewId, fitnessFile);
   const regionStatuses = { ...person.regions, limbs: fitness?.grip.status ?? null };
@@ -64,7 +67,12 @@ export default function Dashboard({
 
   return (
     <>
-      {profile.gravityArrival && onStartStandTest && <GravityPrompt profile={profile} onStart={onStartStandTest} />}
+      <p className="today__context">
+        <EnvironmentIcon setting={profile.setting} size={16} />
+        {contextLine(profile)}
+      </p>
+      {/* Only where the stand test can be done (a surface base); in weightlessness standing has no effect. */}
+      {rules.standTest.available && onStartStandTest && <GravityPrompt profile={profile} onStart={onStartStandTest} />}
       <div className="today">
         <BodyMap
           statuses={regionStatuses}
