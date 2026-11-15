@@ -3473,67 +3473,86 @@ a.limits__source:hover {
 }
 
 
-/* ---- CMO: crew cards on the dashboard, and "viewing someone else" ---- */
-.crew-switcher {
+/* ---- CMO: the crew page (her Today), and "viewing someone else" ---- */
+.crew-overview {
   margin-bottom: 16px;
 }
-.crew-switcher__title {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-muted);
-  margin: 0 0 8px;
+.crew-overview__head {
+  margin-bottom: 12px;
 }
-.crew-switcher__list {
+.crew-overview__title,
+.account-menu__section,
+.account-menu__switch-word {
+  color: var(--color-accent);
+}
+.crew-overview__title {
+  display: inline-block;
+  padding: 2px 12px;
+  border-radius: var(--radius-pill);
+  background: rgba(123, 147, 255, 0.15);
+}
+.crew-overview__list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
-.crew-switcher__card {
+.crew-overview__card {
   width: 100%;
+  height: 100%;
   min-height: 44px;
   display: grid;
-  gap: 4px;
+  align-content: start;
+  gap: 6px;
   text-align: left;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border: 1px solid var(--glass-border);
   border-left: 4px solid var(--status-normal);
   border-radius: var(--radius-control);
   background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
   color: var(--color-text);
   font: inherit;
   cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
 }
-.crew-switcher__card--watch {
+.crew-overview__card--watch {
   border-left-color: var(--status-watch);
 }
-.crew-switcher__card--alert {
+.crew-overview__card--alert {
   border-left-color: var(--status-alert);
 }
-.crew-switcher__card:hover {
+.crew-overview__card.has-emergency {
+  border-color: rgba(255, 90, 90, 0.6);
+  border-left-color: #ff5a5a;
+  background: rgba(255, 90, 90, 0.08);
+}
+.crew-overview__card:hover {
   border-color: var(--color-accent);
 }
-.crew-switcher__card.is-active {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 1px var(--color-accent) inset;
-  background: rgba(123, 147, 255, 0.1);
-}
-.crew-switcher__card:focus-visible {
+.crew-overview__card:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 2px;
 }
-.crew-switcher__name {
+.crew-overview__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.crew-overview__name {
   font-weight: 700;
+  font-size: 1.0625rem;
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
-.crew-switcher__me {
+.crew-overview__me {
   font-size: 0.75rem;
   font-weight: 600;
   padding: 1px 8px;
@@ -3541,16 +3560,99 @@ a.limits__source:hover {
   background: rgba(123, 147, 255, 0.18);
   color: var(--color-accent);
 }
-.crew-switcher__role {
-  font-size: 0.8125rem;
-}
-.crew-switcher__status {
+.crew-overview__emergency {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.875rem;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 90, 90, 0.16);
+  color: #ff5a5a;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+.crew-overview__role,
+.crew-overview__time {
+  font-size: 0.8125rem;
+}
+.crew-overview__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9375rem;
   font-weight: 600;
 }
+.crew-overview__reason {
+  font-size: 0.875rem;
+}
+.crew-overview__time {
+  font-variant-numeric: tabular-nums;
+}
+.crew-overview__back {
+  margin: 0 0 8px;
+}
+.crew-overview__back-btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* "Your data" next to a page title, for the CMO on her own data. */
+.owner-label {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(123, 147, 255, 0.15);
+  color: var(--color-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+/* Header menu: the CMO's Switch view section. */
+.account-menu__switch-word {
+  font-size: 0.8125rem;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(123, 147, 255, 0.15);
+}
+.account-menu__list {
+  min-width: 260px;
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+}
+.account-menu__section {
+  margin: 2px 4px 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(123, 147, 255, 0.15);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.account-menu__item.is-current {
+  background: rgba(123, 147, 255, 0.1);
+  box-shadow: 0 0 0 1px rgba(123, 147, 255, 0.45) inset;
+}
+.account-menu__check {
+  display: inline-block;
+  width: 1em;
+  color: var(--color-accent);
+}
+.account-menu__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+.account-menu__item .account-menu__title {
+  padding-left: calc(1em + 8px);
+}
+
 .viewing {
   display: flex;
   align-items: center;
@@ -3570,9 +3672,14 @@ a.limits__source:hover {
   justify-self: start;
   margin-top: 4px;
 }
-@media (max-width: 900px) {
-  .crew-switcher__list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 599px) {
+  .crew-overview__list {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crew-overview__card {
+    transition: none;
   }
 }
 

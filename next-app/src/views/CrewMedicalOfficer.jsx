@@ -283,7 +283,7 @@ export default function CrewMedicalOfficer({ selfId = null, onOpenCrew = null, o
       <div className="cmo__layout">
         <section className="card card--lg" aria-labelledby="cmo-crew-title">
           <h3 id="cmo-crew-title" className="card__title">
-            Crew status
+            Readings and preflight
           </h3>
           <ol className="cmo__cards">
             {cards.map((c) => (

@@ -15,7 +15,9 @@ import { sensorDaysFor } from './lib/deviceScoring.js';
 import DemoControls from './views/DemoControls.jsx';
 import { crewDaysOf, preflightDaysOf } from './data/bundled.js';
 import Landing from './components/Landing.jsx';
-import CrewSwitcher from './components/CrewSwitcher.jsx';
+import CrewOverview from './components/CrewOverview.jsx';
+import { OVERVIEW, canView, resolveViewedId } from './lib/permissions.js';
+import { lastCheckinAt, openEmergencyPatients, orderCrewCards, topReason } from './lib/crewOverview.js';
 import MoreMenu from './components/MoreMenu.jsx';
 import Vitals from './views/Vitals.jsx';
 import { fitnessFor } from './lib/fitness.js';
@@ -100,10 +102,17 @@ function AppShell() {
   const [standVisited, setStandVisited] = useState(false);
   const [standFocus, setStandFocus] = useState(0);
   const [saved, setSaved] = useState([]); // the shown person's check-ins saved on this device, newest first
-  // The Crew Medical Officer can open any crew member's dashboard; everyone else only sees their own.
-  const [viewedId, setViewedId] = useState(crewId);
-  const shownId = onboard.isCmo ? viewedId : crewId;
+  // The Crew Medical Officer can open any crew member's dashboard, read only, and opens on the crew page;
+  // everyone else only ever sees their own. Every value goes through lib/permissions.js, so a stale or
+  // forged one (state, a future saved value) falls back to the person's own id, or the crew page for the CMO.
+  const viewerRole = onboard.account?.role ?? null;
+  const [requestedView, setViewedId] = useState(OVERVIEW);
+  const viewedId = resolveViewedId({ viewerId: crewId, viewerRole, requested: requestedView });
+  const onOverview = viewedId === OVERVIEW;
+  const shownId = onOverview ? crewId : viewedId;
   const viewingOther = shownId !== crewId;
+  // CMO on her own data (the crew page or "My data"): Vitals says so, so it is not read as the crew's.
+  const ownerLabel = onboard.isCmo && !viewingOther ? 'Your data' : null;
   const shown = crewMemberFor(shownId);
   const [banner, setBanner] = useState(null);
   const [examFor, setExamFor] = useState(null); // CMO only: the crew member being examined
@@ -164,28 +173,49 @@ function AppShell() {
     window.scrollTo(0, 0);
   }
 
-  // CMO only: every crew member's overall status, for the crew cards.
-  const crewCards = useMemo(() => {
+  // CMO only: every crew member's overall status, for the crew page and the Switch view menu.
+  const crewStatus = useMemo(() => {
     if (!onboard.isCmo) return [];
-    return crewRoster.map((c) => ({
-      ...c,
-      status: buildPersonDashboard({
+    return crewRoster.map((c) => {
+      const p = buildPersonDashboard({
         crewId: c.id,
         crewDays: crewDaysOf(c.id),
         preflight: preflightDaysOf(c.id),
         saved: readVitalsCheckins(c.id),
         sensorDays: sensorDaysFor(c.id, demo.state, demo.today),
         today: demo.today,
-      }).overall.status,
-    }));
+      });
+      return { ...c, status: p.overall.status, reason: topReason(p.overall.reason), lastAt: lastCheckinAt(p) };
+    });
   }, [onboard.isCmo, onboard.version, demo.state, demo.today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const emergencyIds = useMemo(() => openEmergencyPatients(emergency.all), [emergency.all]);
+  const crewCards = useMemo(
+    () => orderCrewCards(crewStatus.map((c) => ({ ...c, emergency: emergencyIds.has(c.id) })), crewId, emergencyIds),
+    [crewStatus, emergencyIds, crewId],
+  );
 
-  /** CMO: show one crew member's dashboard. */
+  /** CMO: show one crew member's Today (or the crew page). Crew can only ever open their own. */
   function openCrew(id) {
+    if (id !== OVERVIEW && !canView(crewId, viewerRole, id)) return;
     setViewedId(id);
     setView('dashboard');
     window.scrollTo(0, 0);
   }
+
+  // CMO only: the header's Switch view menu. Crew get null, so their menu holds Sign out only.
+  const viewMenu = onboard.isCmo
+    ? {
+        currentId: viewedId,
+        onView: openCrew,
+        items: [
+          { id: OVERVIEW, label: 'Crew overview' },
+          { id: crewId, label: 'My data' },
+          ...crewStatus
+            .filter((c) => c.id !== crewId)
+            .map((c) => ({ id: c.id, label: c.name, status: c.status, note: emergencyIds.has(c.id) ? `${c.role} · Emergency open` : c.role })),
+        ],
+      }
+    : null;
 
   // The CMO opening someone else's dashboard is logged (throttled in lib/accessLog.js).
   useEffect(() => {
@@ -287,6 +317,7 @@ function AppShell() {
         onProfileChange={setProfileId}
         updatedAt={latestVitals?.recorded_at}
         missionDay={demo.missionDay}
+        viewMenu={viewMenu}
       />
 
       <main className="container main">
@@ -328,6 +359,7 @@ function AppShell() {
               onSelect={setVitalId}
               profile={getProfile(profileId)}
               personName={viewingOther ? shown?.name : undefined}
+              ownerLabel={ownerLabel}
             />
           </>
         )}
@@ -346,7 +378,14 @@ function AppShell() {
 
         {/* Kept mounted while the form is open so region selection and data survive. */}
         <div hidden={view !== 'dashboard'}>
-          {onboard.isCmo && <CrewSwitcher crew={crewCards} selfId={crewId} viewedId={shownId} onSelect={openCrew} />}
+          {onboard.isCmo && onOverview && <CrewOverview cards={crewCards} selfId={crewId} onOpen={openCrew} />}
+          {onboard.isCmo && viewedId === crewId && (
+            <p className="crew-overview__back">
+              <button type="button" className="link-btn crew-overview__back-btn" onClick={() => openCrew(OVERVIEW)}>
+                <span aria-hidden="true">←</span> Crew overview
+              </button>
+            </p>
+          )}
           {viewingOther && (
             <div className="viewing" role="status">
               <p className="viewing__text">
@@ -358,18 +397,20 @@ function AppShell() {
                 <button type="button" className="btn btn--primary viewing__exam" onClick={() => openExam(shownId)}>
                   Record an exam
                 </button>
-                <button type="button" className="btn btn--secondary" onClick={() => openCrew(crewId)}>
-                  Back to my data
+                <button type="button" className="btn btn--secondary" onClick={() => openCrew(OVERVIEW)}>
+                  Back to crew overview
                 </button>
               </div>
             </div>
           )}
-          {!viewingOther && examsForMe.length > 0 && <ExamNotice crewId={crewId} exams={examsForMe} />}
+          {!viewingOther && !onOverview && examsForMe.length > 0 && <ExamNotice crewId={crewId} exams={examsForMe} />}
           {banner && (
             <Banner focusRef={bannerRef} onDismiss={dismissBanner}>
               {banner}
             </Banner>
           )}
+          {/* Hidden, not unmounted, on the crew page so an open region or drawer survives. */}
+          <div hidden={onOverview}>
           <Dashboard
             latestCheckin={latestCheckin}
             onLogCheckin={viewingOther ? null : openCheckin}
@@ -383,6 +424,7 @@ function AppShell() {
             today={demo.today}
             sensorsToday={!viewingOther && Boolean(sensorToday)}
           />
+          </div>
         </div>
 
         {view === 'exam' && onboard.isCmo && examPatient && examFor !== crewId && (
